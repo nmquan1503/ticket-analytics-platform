@@ -89,5 +89,36 @@ npm run preview
 
 ---
 
+## 🧪 Hướng dẫn Kiểm thử Giao diện (GUI Testing Guide)
+
+Để đảm bảo Dashboard vận hành đúng kịch bản, sếp có thể thực hiện các bước kiểm thử sau:
+
+### 1. Kiểm tra Chế độ hiển thị (Mode Switching)
+*   **Kịch bản:** Bấm nút chuyển đổi giữa **Sự Cố (SC)** và **Hỗ Trợ (HT)** ở phía trên cùng bên trái.
+*   **Yêu cầu:** Các con số KPI phải nhảy lại tức thì. Tab Tổng quan phải hiển thị thêm Biểu đồ Leo thang khi ở chế độ HT.
+
+### 2. Kiểm tra Luồng Tab (Tab Navigation)
+*   Bấm lần lượt qua 3 Tab: **Tổng quan**, **Chất lượng**, **Ùn tắc**.
+*   **Yêu cầu:** Hiệu ứng Fade-in phải mượt mà, các biểu đồ không bị tràn khung hoặc biến mất.
+
+### 3. Kiểm tra Bộ lọc (Filtering Logic)
+*   Thử chọn nhiều Chi nhánh hoặc Khu vực cùng lúc trong menu thả xuống.
+*   **Yêu cầu:** Dữ liệu biểu đồ phải co giãn tương ứng với danh sách mục đã chọn. Bấm nút **"Xóa bộ lọc"** để đưa mọi thứ về mặc định.
+
+### 4. Kiểm tra Biểu đồ Tương tác (Chart Interactivity)
+*   Di chuột vào các cột hoặc đường trong biểu đồ.
+*   **Yêu cầu:** Phải hiện **Tooltip** hiển thị chi tiết con số dưới dạng Pop-up tại điểm di chuột.
+
+### 5. Kiểm tra Trợ lý AI (AI Copilot Sidebar)
+*   Bấm vào biểu tượng Chat ở cạnh trái màn hình.
+*   **Yêu cầu:** Thanh Sidebar phải trượt ra từ bên trái. Gõ thử nội dung để kiểm tra giao diện khung chat.
+
+### 6. Kiểm tra Độ tương thích (Responsiveness)
+*   Nhấn `F12` trên trình duyệt, chọn chế độ Mobile hoặc co bóp cửa sổ trình duyệt.
+*   **Yêu cầu:** Grid 5 cột của bộ lọc phải tự động chuyển thành 1 cột (dọc) trên điện thoại và biểu đồ tự động co nhỏ lại.
+
+---
+
 **✍️ Được phát triển bởi:** Antigravity AI Partner
+
 **📅 Phiên bản:** 2.0.0 (Full SQL Schema Integration)
