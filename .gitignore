@@ -18,6 +18,9 @@ build/
 .env.*
 !.env.example
 
+# Database / Schema files
+scc_ht_schema.sql
+
 # OS files
 .DS_Store
 Thumbs.db
