@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
-import { Target, Activity, Zap, ShieldAlert } from 'lucide-react';
+import { Target, Activity, Zap, ShieldAlert, Timer } from 'lucide-react';
 
 import KPICard from '../KPICard';
 import ChartCard from '../ChartCard';
@@ -12,12 +12,14 @@ export default function QoSTab({ data }) {
   const qosStats = useMemo(() => {
     let sumSuspend = 0;
     let sumActual = 0;
+    let sumCreation = 0;
     let autoCount = 0;
     let disasterCount = 0;
 
     data.forEach(t => {
       sumSuspend += t.suspend_time || 0;
       sumActual += t.actual_time || 0;
+      sumCreation += t.sc_creation_time || 0;
       if (t.sc_creation_method === 'SC tạo auto') autoCount++;
       if (t.sc_natural_disaster === 'Có') disasterCount++;
     });
@@ -25,6 +27,7 @@ export default function QoSTab({ data }) {
     return {
       avgSuspend: data.length ? Math.round(sumSuspend / data.length) : 0,
       avgActual: data.length ? Math.round(sumActual / data.length) : 0,
+      avgCreation: data.length ? (sumCreation / data.length).toFixed(1) : 0,
       autoRate: data.length ? ((autoCount / data.length) * 100).toFixed(1) : 0,
       disasterRate: data.length ? ((disasterCount / data.length) * 100).toFixed(1) : 0,
     };
@@ -66,7 +69,7 @@ export default function QoSTab({ data }) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <KPICard 
           title="TG Gián đoạn TT (Suspend)" value={qosStats.avgSuspend} unit="Phút" icon={Target} 
           colorClass={{ bg: 'bg-rose-50', text: 'text-rose-600' }} trend={18}
@@ -74,6 +77,10 @@ export default function QoSTab({ data }) {
         <KPICard 
           title="TG Thao tác xử lý (Actual)" value={qosStats.avgActual} unit="Phút" icon={Activity} 
           colorClass={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }} trend={-4}
+        />
+        <KPICard 
+          title="Độ trễ báo cáo (Latency)" value={qosStats.avgCreation} unit="Phút" icon={Timer} 
+          colorClass={{ bg: 'bg-blue-50', text: 'text-blue-600' }} trend={-12}
         />
         <KPICard 
           title="Tỷ lệ SC phát hiện Auto" value={qosStats.autoRate} unit="%" icon={Zap} 

@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   ComposedChart, Line, Legend
 } from 'recharts';
-import { ShieldX, AlertTriangle, GitMerge, TrendingUp } from 'lucide-react';
+import { ShieldX, AlertTriangle, GitMerge, TrendingUp, Clock, Calendar } from 'lucide-react';
 
 import KPICard from '../KPICard';
 import ChartCard from '../ChartCard';
@@ -12,12 +12,16 @@ export default function BottleneckTab({ data }) {
   const bottleneckStats = useMemo(() => {
     let totalRejection = 0;
     let totalViolation = 0;
+    let totalWaitTime = 0;
+    let totalAge = 0;
     let anyRejectionCount = 0;
     let anyViolationCount = 0;
 
     data.forEach(t => {
       totalRejection += t.rejection_count || 0;
       totalViolation += t.sla_violation_count || 0;
+      totalWaitTime += t.change_queue_time || 0;
+      totalAge += t.ticket_age_days || 0;
       if (t.rejection_count > 0) anyRejectionCount++;
       if (t.sla_violation_count > 0) anyViolationCount++;
     });
@@ -25,6 +29,8 @@ export default function BottleneckTab({ data }) {
     return {
       rejectionRate: data.length ? ((anyRejectionCount / data.length) * 100).toFixed(1) : 0,
       violationRate: data.length ? ((anyViolationCount / data.length) * 100).toFixed(1) : 0,
+      avgWait: data.length ? Math.round(totalWaitTime / data.length) : 0,
+      avgAge: data.length ? (totalAge / data.length).toFixed(1) : 0,
       totalRejection,
       totalViolation,
     };
@@ -35,13 +41,16 @@ export default function BottleneckTab({ data }) {
     const map = {};
     data.forEach(t => {
       const q = t.queue_process;
-      if (!map[q]) map[q] = { name: q, tickets: 0, rejections: 0, violations: 0 };
+      if (!map[q]) map[q] = { name: q, tickets: 0, rejections: 0, waitTime: 0, count: 0 };
       map[q].tickets++;
       map[q].rejections += t.rejection_count || 0;
-      map[q].violations += t.sla_violation_count || 0;
+      map[q].waitTime += t.change_queue_time || 0;
+      map[q].count++;
     });
 
-    return Object.values(map).sort((a,b) => b.tickets - a.tickets);
+    return Object.values(map)
+      .map(q => ({ ...q, avgWait: Math.round(q.waitTime / q.count) }))
+      .sort((a,b) => b.tickets - a.tickets);
   }, [data]);
 
   return (
@@ -61,22 +70,30 @@ export default function BottleneckTab({ data }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         <KPICard 
-          title="Vé bị đá bóng (Rejection)" value={bottleneckStats.rejectionRate} unit="%" icon={GitMerge} 
-          colorClass={{ bg: 'bg-orange-50', text: 'text-orange-600' }} trend={15.3}
+          title="Vé bị đá bóng" value={bottleneckStats.rejectionRate} unit="%" icon={GitMerge} 
+          colorClass={{ bg: 'bg-orange-50', text: 'text-orange-600' }}
+        />
+        <KPICard 
+          title="Lượt tái VP SLA" value={bottleneckStats.violationRate} unit="%" icon={AlertTriangle} 
+          colorClass={{ bg: 'bg-rose-50', text: 'text-rose-600' }}
+        />
+        <KPICard 
+          title="TG Ngâm Ticket TB" value={bottleneckStats.avgWait} unit="Phút" icon={Clock} 
+          colorClass={{ bg: 'bg-amber-50', text: 'text-amber-600' }} trend={22}
+        />
+        <KPICard 
+          title="Tuổi thọ tồn kho TB" value={bottleneckStats.avgAge} unit="Ngày" icon={Calendar} 
+          colorClass={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }} trend={5}
         />
         <KPICard 
           title="Tổng lượt Từ chối" value={bottleneckStats.totalRejection} icon={TrendingUp} 
-          colorClass={{ bg: 'bg-orange-50', text: 'text-orange-600' }} trend={5}
-        />
-        <KPICard 
-          title="Tỷ lệ Tái Cảnh báo SLA" value={bottleneckStats.violationRate} unit="%" icon={AlertTriangle} 
-          colorClass={{ bg: 'bg-rose-50', text: 'text-rose-600' }} trend={8.1}
+          colorClass={{ bg: 'bg-orange-100', text: 'text-orange-700' }}
         />
         <KPICard 
           title="Tổng lượt Vi phạm" value={bottleneckStats.totalViolation} icon={ShieldX} 
-          colorClass={{ bg: 'bg-rose-50', text: 'text-rose-600' }} trend={2}
+          colorClass={{ bg: 'bg-rose-100', text: 'text-rose-700' }}
         />
       </div>
 
@@ -106,8 +123,9 @@ export default function BottleneckTab({ data }) {
                 />
                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                 
-                <Bar dataKey="tickets" name="Tổng vé xử lý" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} />
-                <Bar dataKey="rejections" name="Số lượt Đá Bóng" fill="#f97316" radius={[0, 4, 4, 0]} barSize={24} />
+                <Bar dataKey="tickets" name="Tổng vé xử lý" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                <Bar dataKey="rejections" name="Số lượt Đá Bóng" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} />
+                <Bar dataKey="avgWait" name="TG Ngâm (Phút)" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={10} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>

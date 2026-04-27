@@ -3,13 +3,13 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
-import { Ticket, Users, Clock, Zap, AlertTriangle } from 'lucide-react';
+import { Ticket, Users, Clock, Zap, AlertTriangle, ArrowUpCircle } from 'lucide-react';
 
 import KPICard from '../KPICard';
 import ChartCard from '../ChartCard';
 import { STATUSES } from '../../data/mockData';
 
-export default function OverviewTab({ data, stats }) {
+export default function OverviewTab({ data, stats, viewMode }) {
   // Status Distribution Data
   const statusData = useMemo(() => {
     return STATUSES.map(s => ({
@@ -67,6 +67,23 @@ export default function OverviewTab({ data, stats }) {
     data.forEach(t => counts[t.issue_group] = (counts[t.issue_group] || 0) + 1);
     const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6'];
     return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map((i, idx) => ({ name: i[0], value: i[1], color: COLORS[idx % COLORS.length] }));
+  }, [data]);
+
+  // HT Specific: Escalation Rate
+  const escalationData = useMemo(() => {
+    const counts = { 'Có': 0, 'Không': 0 };
+    data.forEach(t => { if (counts[t.is_escalated] !== undefined) counts[t.is_escalated]++; });
+    return [
+      { name: 'Phải Leo thang', value: counts['Có'], color: '#f43f5e' },
+      { name: 'Xử lý tại chỗ', value: counts['Không'], color: '#10b981' }
+    ];
+  }, [data]);
+
+  // HT Specific: Customer Types
+  const customerTypeData = useMemo(() => {
+    const counts = {};
+    data.forEach(t => { if (t.customer_type) counts[t.customer_type] = (counts[t.customer_type] || 0) + 1; });
+    return Object.entries(counts).map(([name, value]) => ({ name, value })).sort((a,b)=>b.value - a.value);
   }, [data]);
 
   return (
@@ -195,6 +212,34 @@ export default function OverviewTab({ data, stats }) {
           </ResponsiveContainer>
         </ChartCard>
       </div>
+
+      {viewMode === 'HT' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up">
+          <ChartCard title="Tỷ lệ Vượt cấp xử lý (Escalation Rate)">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={escalationData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {escalationData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                <Legend verticalAlign="bottom" height={36}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard title="Phân khúc Khách hàng hỗ trợ">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={customerTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Số lượng" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
+      )}
     </div>
   );
 }

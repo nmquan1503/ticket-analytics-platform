@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  PieChart, Pie, Cell, AreaChart, Area 
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
-import { 
-  Calendar, MapPin, Briefcase, Filter, ChevronDown, 
+import {
+  Calendar, MapPin, Briefcase, Filter, ChevronDown,
   User, Activity, AlertTriangle, LayoutDashboard, Target, GitBranch
 } from 'lucide-react';
 
@@ -23,27 +23,27 @@ import { mockSCData, mockHTData, STATUSES, LOCATIONS, BRANCHES, PRIORITIES } fro
 export default function Dashboard() {
   const [viewMode, setViewMode] = useState('SC'); // 'SC' or 'HT'
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'qos', 'bottleneck'
-  
+
   // Real Filter States (Multi-select uses arrays now)
   const [dateRange, setDateRange] = useState('30'); // '7' or '30'
   const [locationFilter, setLocationFilter] = useState([]);
   const [branchFilter, setBranchFilter] = useState([]);
   const [priorityFilter, setPriorityFilter] = useState([]);
-  
+
   // Filtered Data Logic
   const data = useMemo(() => {
     const rawData = viewMode === 'SC' ? mockSCData : mockHTData;
-    
+
     return rawData.filter(t => {
       // 1. Location Filter (Array includes)
       if (locationFilter.length > 0 && !locationFilter.includes(t.location)) return false;
-      
+
       // 2. Branch Filter (Array includes)
       if (branchFilter.length > 0 && !branchFilter.includes(t.branch_name)) return false;
-      
+
       // 3. Priority Filter (Array includes)
       if (priorityFilter.length > 0 && !priorityFilter.includes(t.priority)) return false;
-      
+
       // 3. Date Range Filter
       const tDate = new Date(t.created_date);
       const now = new Date();
@@ -58,7 +58,7 @@ export default function Dashboard() {
       }
       return true;
     });
-  }, [viewMode, locationFilter, branchFilter, dateRange]);
+  }, [viewMode, locationFilter, branchFilter, priorityFilter, dateRange]);
 
   // KPI Calculations
   const stats = useMemo(() => {
@@ -83,13 +83,13 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center bg-white p-1 rounded-xl shadow-sm border border-gray-100">
-              <button 
+              <button
                 onClick={() => setViewMode('SC')}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === 'SC' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
               >
                 Sự Cố (SC)
               </button>
-              <button 
+              <button
                 onClick={() => setViewMode('HT')}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === 'HT' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
               >
@@ -102,12 +102,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Thời gian</label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <select 
+              <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
                 className="pl-10 pr-4 py-2.5 w-full bg-gray-50 border-none rounded-xl text-sm font-medium appearance-none select-none cursor-pointer hover:bg-gray-100 transition-colors"
@@ -122,7 +122,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-1.5 z-40">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Khu vực (dim_locations)</label>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Khu vực</label>
             <MultiSelect
               options={LOCATIONS}
               selected={locationFilter}
@@ -133,7 +133,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-1.5 z-30">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Chi nhánh (dim_branches)</label>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Chi nhánh</label>
             <MultiSelect
               options={BRANCHES}
               selected={branchFilter}
@@ -142,7 +142,7 @@ export default function Dashboard() {
               icon={Briefcase}
             />
           </div>
-          
+
           <div className="flex flex-col gap-1.5 z-20">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Mức ưu tiên</label>
             <MultiSelect
@@ -155,7 +155,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-end">
-            <button 
+            <button
               onClick={() => {
                 setDateRange('30');
                 setLocationFilter([]);
@@ -172,21 +172,21 @@ export default function Dashboard() {
 
         {/* Tab Navigation Menu */}
         <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
-          <button 
+          <button
             onClick={() => setActiveTab('overview')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'overview' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
           >
             <LayoutDashboard size={18} />
             Tổng quan (Overview)
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('qos')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'qos' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
           >
             <Target size={18} />
             Đánh giá Chất lượng (QoS/CX)
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('bottleneck')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'bottleneck' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
           >
@@ -197,7 +197,7 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto space-y-6">
-        {activeTab === 'overview' && <OverviewTab data={data} stats={stats} />}
+        {activeTab === 'overview' && <OverviewTab data={data} stats={stats} viewMode={viewMode} />}
         {activeTab === 'qos' && <QoSTab data={data} />}
         {activeTab === 'bottleneck' && <BottleneckTab data={data} />}
       </main>
