@@ -1,5 +1,14 @@
-const BRANCHES = ['Hà Nội 1', 'Hà Nội 10', 'Khánh Hòa 2', 'Đà Nẵng', 'Hồ Chí Minh 5', 'Cần Thơ', 'Hải Phòng', 'Hà Giang'];
-const LOCATIONS = ['01. Hà Nội', '06. Khánh Hòa', '04. Đà Nẵng', '12. Hồ Chí Minh', '15. Tây Nam Bộ', '02. Đông Bắc Bộ'];
+const LOCATION_BRANCH_MAP = {
+  '01. Hà Nội': ['Hà Nội 1', 'Hà Nội 10'],
+  '06. Khánh Hòa': ['Khánh Hòa 2'],
+  '04. Đà Nẵng': ['Đà Nẵng'],
+  '12. Hồ Chí Minh': ['Hồ Chí Minh 5'],
+  '15. Tây Nam Bộ': ['Cần Thơ'],
+  '02. Đông Bắc Bộ': ['Hải Phòng', 'Hà Giang']
+};
+
+const LOCATIONS = Object.keys(LOCATION_BRANCH_MAP);
+const BRANCHES = Object.values(LOCATION_BRANCH_MAP).flat();
 const STAFFS = ['Nguyễn Minh Quân', 'Lê Văn Mạnh', 'Trần Thị Thảo', 'Phạm Hoàng Nam', 'Đỗ Trung Kiên', 'Vũ Hải Yến'];
 const ISSUE_GROUPS = ['Hệ thống Access', 'Core IP', 'Truyền dẫn', 'Nguồn điện', 'Hệ thống OLT'];
 const REASONS = ['Đứt cáp quang', 'Nhiễu tín hiệu', 'Mất điện lưới', 'Lỗi phần cứng', 'Cảnh báo tự động', 'Quá tải thiết bị'];
@@ -21,14 +30,18 @@ const generateMockTickets = (mode) => {
   return Array.from({ length: 150 }).map((_, i) => {
     const statusObj = STATUSES[Math.floor(Math.random() * STATUSES.length)];
     const createdDate = new Date();
-    createdDate.setDate(createdDate.getDate() - Math.floor(Math.random() * 45)); // Generate up to 45 days ago
+    createdDate.setDate(createdDate.getDate() - Math.floor(Math.random() * 365)); 
 
+    const location = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)];
+    const availableBranches = LOCATION_BRANCH_MAP[location];
+    const branch = availableBranches[Math.floor(Math.random() * availableBranches.length)];
+    
     return {
       ticket_id: i + 1,
       code: `${mode}${25102500000 + i}`,
       status: statusObj.name,
-      branch_name: BRANCHES[Math.floor(Math.random() * BRANCHES.length)],
-      location: LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)],
+      branch_name: branch,
+      location: location,
       created_date: createdDate.toISOString().split('T')[0],
       cus_qty: Math.floor(Math.random() * 500),
       // Giả lập logic: thời gian thao tác (actual) luôn thấp hơn thời gian gián đoạn ròng (suspend)
@@ -68,4 +81,4 @@ const generateMockTickets = (mode) => {
 
 export const mockSCData = generateMockTickets('SC');
 export const mockHTData = generateMockTickets('HT');
-export { BRANCHES, LOCATIONS, STAFFS, ISSUE_GROUPS, REASONS, QUEUES };
+export { BRANCHES, LOCATIONS, STAFFS, ISSUE_GROUPS, REASONS, QUEUES, LOCATION_BRANCH_MAP };

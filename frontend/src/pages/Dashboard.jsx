@@ -18,17 +18,35 @@ import QoSTab from '../components/tabs/QoSTab';
 import BottleneckTab from '../components/tabs/BottleneckTab';
 
 // Data
-import { mockSCData, mockHTData, STATUSES, LOCATIONS, BRANCHES, PRIORITIES } from '../data/mockData';
+import { mockSCData, mockHTData, STATUSES, LOCATIONS, BRANCHES, PRIORITIES, LOCATION_BRANCH_MAP } from '../data/mockData';
 
 export default function Dashboard() {
+  const now = new Date();
   const [viewMode, setViewMode] = useState('SC'); // 'SC' or 'HT'
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'qos', 'bottleneck'
-
+  
   // Real Filter States (Multi-select uses arrays now)
   const [dateRange, setDateRange] = useState('30'); // '7' or '30'
   const [locationFilter, setLocationFilter] = useState([]);
   const [branchFilter, setBranchFilter] = useState([]);
   const [priorityFilter, setPriorityFilter] = useState([]);
+
+  // Logic Chi nhánh khả dụng dựa trên Khu vực
+  const availableBranches = useMemo(() => {
+    if (locationFilter.length === 0) return BRANCHES;
+    return locationFilter.flatMap(loc => LOCATION_BRANCH_MAP[loc] || []);
+  }, [locationFilter]);
+
+  // Tự động dọn dẹp Chi nhánh đã chọn nếu không còn khả dụng
+  React.useEffect(() => {
+    if (branchFilter.length > 0) {
+      const validSelected = branchFilter.filter(b => availableBranches.includes(b));
+      if (validSelected.length !== branchFilter.length) {
+        setBranchFilter(validSelected);
+      }
+    }
+  }, [availableBranches]);
+  
 
   // Filtered Data Logic
   const data = useMemo(() => {
@@ -55,6 +73,14 @@ export default function Dashboard() {
         const past = new Date();
         past.setDate(now.getDate() - 30);
         if (tDate < past) return false;
+      } else if (dateRange.startsWith('Q')) {
+        const quarter = parseInt(dateRange[1]);
+        const year = now.getFullYear();
+        const startMonth = (quarter - 1) * 3;
+        const endMonth = startMonth + 2;
+        const startDate = new Date(year, startMonth, 1);
+        const endDate = new Date(year, endMonth + 1, 0);
+        if (tDate < startDate || tDate > endDate) return false;
       }
       return true;
     });
@@ -115,6 +141,10 @@ export default function Dashboard() {
               >
                 <option value="30">30 ngày gần nhất</option>
                 <option value="7">7 ngày gần nhất</option>
+                <option value="Q1">Quý 1 ({now.getFullYear()})</option>
+                <option value="Q2">Quý 2 ({now.getFullYear()})</option>
+                <option value="Q3">Quý 3 ({now.getFullYear()})</option>
+                <option value="Q4">Quý 4 ({now.getFullYear()})</option>
                 <option value="all">Tất cả thời gian</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
@@ -135,10 +165,10 @@ export default function Dashboard() {
           <div className="flex flex-col gap-1.5 z-30">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Chi nhánh</label>
             <MultiSelect
-              options={BRANCHES}
+              options={availableBranches}
               selected={branchFilter}
               onChange={setBranchFilter}
-              placeholder="Chọn chi nhánh..."
+              placeholder={locationFilter.length > 0 ? "Chọn chi nhánh..." : "Chọn khu vực trước..."}
               icon={Briefcase}
             />
           </div>
