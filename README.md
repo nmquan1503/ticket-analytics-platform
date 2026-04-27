@@ -1,68 +1,84 @@
 # 📊 Ticket Analytics Platform
 
-Nền tảng Quản trị và Phân tích Dữ liệu Vận hành Viễn thông, tập trung vào việc bóc tách số liệu cho các luồng Sự Cố (SC) và Hỗ Trợ (HT).
+Hệ thống Quản trị và Phân tích Dữ liệu Vận hành Viễn thông, xây dựng đặc thù để hỗ trợ giám sát, truy vấn Sự Cố (SC) và Hỗ Trợ (HT).
 
-Dự án bao gồm một Frontend hiển thị Dashboard chuẩn Business Intelligence (BI) và một hệ thống mô phỏng cơ sở dữ liệu Data Warehouse.
+Dự án bao gồm một Frontend hiển thị Dashboard chuẩn **Business Intelligence (BI)** và hệ thống giao diện **AI Copilot (Trợ lý Ảo)** để truy vấn SQL Data Warehouse.
 
 ---
 
-## 📁 Cấu trúc thư mục
+## 📁 Cấu trúc thư mục nền tảng
 
 ```text
 ticket-analytics-platform/
-├── scc_ht_schema.sql     # File cấu trúc CSDL SQL (Data Warehouse)
-├── frontend/             # Ứng dụng lõi BI Dashboard (React + Vite + Tailwind)
+├── scc_ht_schema.sql     # Data Warehouse System Schema (Dimensional Modeling)
+├── frontend/             # Ứng dụng BI Dashboard & AI Copilot
 │   ├── src/
-│   │   ├── components/   # Các UI Components (KPICard, ChartCard, MultiSelect)
-│   │   ├── data/         # Hệ thống giả lập Mock Data phản ánh schema SQL
-│   │   └── pages/        # Dashboard Layout
-│   └── demo.html         # File chạy Demo tĩnh trực tiếp (Không cần Node.js)
+│   │   ├── components/   # Các Component Reusable
+│   │   │   ├── AICopilot.jsx   # Cửa sổ Trợ lý ảo & SQL Workbench
+│   │   │   ├── ChartCard.jsx   # Khung chứa Biểu đồ
+│   │   │   ├── KPICard.jsx     # Thẻ đo lường chỉ số
+│   │   │   └── MultiSelect.jsx # Bộ lọc Đa chiều Custom
+│   │   ├── data/
+│   │   │   └── mockData.js     # Factory Data để thao tác Frontend Real-Time
+│   │   └── pages/
+│   │       └── Dashboard.jsx   # Dashboard Layout Core (Lắp ghép)
+│   ├── index.html        # Khung HTML gốc của Vite
+│   ├── vite.config.js    # Cấu hình đóng gói Vite
+│   ├── tailwind.config.js# Cấu hình hệ thống Design System 
+│   ├── package.json      # Danh sách viện thuộc (React, Recharts, Lucide)
+│   └── demo.html         # Phiên bản Web siêu tĩnh độc lập
 └── README.md
 ```
 
 ---
 
-## 🚀 Hướng dẫn cài đặt và sử dụng
+## 🚀 Hướng dấn Cài đặt và Chạy ứng dụng CHI TIẾT
 
-### Dành cho người không chuyên (Chạy xem Demo ngẫu nhiên)
-Bạn có thể mở trực tiếp file `frontend/demo.html` bằng bất kỳ trình duyệt web nào (Chrome, Edge, Firefox) để xem giao diện tĩnh. Giao diện tĩnh này có tích hợp sẵn code JavaScript giả lập.
+Ứng dụng Frontend được thiết kế bằng **React.js** kết hợp **Vite**. Do đó, yêu cầu cấu hình máy chủ phải có hệ điều hành cài đặt sẵn Node.js (phiên bản >16).
 
-### Dành cho Developer (Chạy App React thực tế)
-Yêu cầu hệ thống phải được cài đặt `Node.js` (Phiên bản > 16.x).
-
-**Bước 1:** Di chuyển vào thư mục chứa code giao diện.
+### BƯỚC 1: Khởi tạo và Tải thư viện
+Mở Command Line (Terminal) và vào đúng thư mục frontend, sau đó tải Node Modules.
 ```bash
 cd frontend
-```
-
-**Bước 2:** Cài đặt các thư viện cần thiết.
-```bash
 npm install
 ```
 
-**Bước 3:** Khởi động dự án trên trình duyệt.
+### BƯỚC 2: Khởi động Ứng dụng
 
-🔹 *Cách 1: Chạy môi trường Phát triển (Nhẹ nhàng, theo dõi code trực tiếp)*
+Trong quá trình sử dụng thực tế, máy trạm nội bộ của bạn thường xuyên đầy bộ đệm (bị văng lỗi `ENOSPC` hệ thống theo dõi tệp). Vì vậy, có 2 cách để khởi động.
+
+**Cách 1: Môi trường Phát triển (Development)** - Phù hợp nếu máy mạnh và bộ đệm chưa bị tràn.
 ```bash
 npm run dev
 ```
 
-🔹 *Cách 2: Chạy môi trường Giả lập Production (Khuyên dùng khi máy tính gặp lỗi quá tải system watchers / ENOSPC Error)*
+**Cách 2: Môi trường Sản phẩm Tĩnh (Production Preview)** - **🌟 Rất khuyến nghị sử dụng🌟** (Khắc phục triệt để lỗi bộ đệm).
+Hệ thống sẽ biên dịch code React thành mã nguồn độc lập tĩnh và phát trên máy chủ gọn nhẹ:
 ```bash
 npm run build
 npm run preview
 ```
 
-Ứng dụng sẽ tự động chạy tại cổng: `http://localhost:4173` hoặc `http://localhost:3000`.
+**Kết nối URL:** 
+Ứng dụng sẽ nổi lên tại cổng: [http://localhost:4173](http://localhost:4173) (nếu chạy Production) hoặc cổng 3000/5173 (nếu chạy Dev).
 
 ---
 
-## 🔥 Tính năng Nổi bật trong Dashboard
+## 🔥 Các chức năng kỹ thuật Thượng tầng
 
-1. **Global Multiple-Select Filter**: Cho phép người xem lọc đồng thời cực kỳ linh hoạt (Nhiều Khung thời gian, Nhiều Khu vực và Nhiều Chi nhánh cùng một lúc).
-2. **Alert Điểm Nóng (SOS Box)**: Hệ thống tự động đẩy cảnh báo rung (pulse) dạng biểu ngữ lên trên top khi có các Ticket thuộc mức **Ưu tiên từ 5-6** hoặc **được đánh cờ khẩn cấp (SOS).**
-3. **Phân tích Gốc rễ (Root Causes)**: Biểu đồ theo dõi Lỗ hổng thường gặp nhất trong hệ thống và Phân bổ Nhóm thiết bị (Access, Core IP, Transmission) tạo ra chúng.
-4. **Ranking Nhân sự / Chi nhánh**: Xếp hạng khách quan năng lực xử lý ticket.
+### 1. AI Copilot & SQL Workbench
+Ở góc dưới bên phải màn hình có một **Nút Kích Hoạt Tia Chớp nhấp nháy đỏ**. Khi bấm vào, **Sidebar AI** trượt ra.
+- Nếu gõ câu thông thường: Hỏi số liệu.
+- Nếu gõ câu bắt đầu bằng `SELECT` (SQL Query): Trả về lưới bảng dữ liệu bảng tĩnh siêu mượt như DataGrip.
+- Sidebar phủ đè lên Dashboard (Overlay) giữ nguyên bối cảnh hiển thị số liệu giúp Sếp/Phân tích viên vừa nhìn bảng biểu vừa phân tích.
+
+### 2. Analytics Đa chiều (Smart Routing Logic)
+Bảng điểu khiển (Top Filter) sử dụng bộ lọc mảng đa thành phần (Array Multi Select) tự tay thiết kế chứ không dùng thư viện gốc:
+- Lọc theo *Độ Ưu tiên (1 đến 6)*.
+- Alert Nhấp Nháy rực lửa ngay bên dưới Filter khi lượng *Vé Khẩn Cấp (SOS)* tăng cao.
+
+### 3. Phân Tích Gốc Rễ Đứt Cáp
+Biểu đồ Recharts Rendering phân tích **Top 5 Nguồn cơn lỗi phần cứng** và **Tỷ lệ % đổ vỡ theo Nhóm Thiết bị IP**, tương thích ngược thiết kế với Schema Schema của MySQL Backend.
 
 ---
-*Developed & Optimized by Antigravity AI.*
+*Created and Optimized for Telecommunication Analytics Context.*

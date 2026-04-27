@@ -12,6 +12,7 @@ import {
 import KPICard from '../components/KPICard';
 import ChartCard from '../components/ChartCard';
 import MultiSelect from '../components/MultiSelect';
+import AICopilot from '../components/AICopilot';
 
 // Data
 import { mockSCData, mockHTData, STATUSES, LOCATIONS, BRANCHES, PRIORITIES } from '../data/mockData';
@@ -387,6 +388,9 @@ export default function Dashboard() {
         </div>
         <p>© 2025 SCC HT System • Vietnam Telecom Performance Dashboard</p>
       </footer>
+
+      {/* Tích hợp trực tiếp Trợ lý AI & SQL Analyzer */}
+      <AICopilot />
     </div>
   );
 }
