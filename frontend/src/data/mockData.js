@@ -3,6 +3,7 @@ const LOCATIONS = ['01. Hà Nội', '06. Khánh Hòa', '04. Đà Nẵng', '12. H
 const STAFFS = ['Nguyễn Minh Quân', 'Lê Văn Mạnh', 'Trần Thị Thảo', 'Phạm Hoàng Nam', 'Đỗ Trung Kiên', 'Vũ Hải Yến'];
 const ISSUE_GROUPS = ['Hệ thống Access', 'Core IP', 'Truyền dẫn', 'Nguồn điện', 'Hệ thống OLT'];
 const REASONS = ['Đứt cáp quang', 'Nhiễu tín hiệu', 'Mất điện lưới', 'Lỗi phần cứng', 'Cảnh báo tự động', 'Quá tải thiết bị'];
+const QUEUES = ['SCC (Vận hành mạng)', 'INF-BTHT (Bảo trì nội bộ)', 'CSOC-IT (An toàn TT)', 'NOC (Core Network)', 'CNO (Kỹ thuật VN)'];
 
 export const PRIORITIES = [1, 2, 3, 4, 5, 6];
 
@@ -28,20 +29,33 @@ const generateMockTickets = (mode) => {
       location: LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)],
       created_date: createdDate.toISOString().split('T')[0],
       cus_qty: Math.floor(Math.random() * 500),
+      // Giả lập logic: thời gian thao tác (actual) luôn thấp hơn thời gian gián đoạn ròng (suspend)
       actual_time: Math.floor(Math.random() * 180), // minutes
+      suspend_time: Math.floor(Math.random() * 180) + 30, // Khách hàng luôn chết mạng lâu hơn thao tác xử lý
+      
       staff_name: STAFFS[Math.floor(Math.random() * STAFFS.length)],
       sla_status: Math.random() > 0.2 ? 'Đúng hạn' : 'Quá hạn',
       type: mode, // SC or HT
       
-      // New Analytics Fields based on schema analysis
+      // Analytics Fields (Phase 1)
       priority: PRIORITIES[Math.floor(Math.random() * PRIORITIES.length)],
-      sos_ticket_flag: Math.random() > 0.85 ? 'Có' : 'Không', // 15% SOS rate
+      sos_ticket_flag: Math.random() > 0.85 ? 'Có' : 'Không', 
       reason: REASONS[Math.floor(Math.random() * REASONS.length)],
       issue_group: ISSUE_GROUPS[Math.floor(Math.random() * ISSUE_GROUPS.length)],
+      
+      // Deep Dive Fields (Phase 2 based on Full SQL Schema)
+      sc_type: Math.random() > 0.3 ? 'Chủ quan' : 'Khách quan', // Con người vs Bất khả kháng
+      sc_natural_disaster: Math.random() > 0.9 ? 'Có' : 'Không', // 10% do bão lũ
+      sc_creation_method: Math.random() > 0.4 ? 'SC tạo auto' : 'SC tạo manual (SC tạo tay)',
+      queue_process: QUEUES[Math.floor(Math.random() * QUEUES.length)],
+      
+      // Bottleneck Analytics
+      rejection_count: Math.random() > 0.7 ? Math.floor(Math.random() * 4) + 1 : 0, // Số lần bị đá bóng sang luồng khác
+      sla_violation_count: Math.random() > 0.8 ? Math.floor(Math.random() * 3) + 1 : 0, // Số lần tái vi phạm
     };
   });
 };
 
 export const mockSCData = generateMockTickets('SC');
 export const mockHTData = generateMockTickets('HT');
-export { BRANCHES, LOCATIONS, STAFFS, ISSUE_GROUPS, REASONS };
+export { BRANCHES, LOCATIONS, STAFFS, ISSUE_GROUPS, REASONS, QUEUES };

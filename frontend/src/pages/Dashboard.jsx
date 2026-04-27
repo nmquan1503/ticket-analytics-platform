@@ -4,8 +4,8 @@ import {
   PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
 import { 
-  Ticket, Users, Clock, Zap, Filter, Calendar, MapPin, 
-  Briefcase, ChevronDown, User, Activity, AlertTriangle, Flame
+  Calendar, MapPin, Briefcase, Filter, ChevronDown, 
+  User, Activity, AlertTriangle, LayoutDashboard, Target, GitBranch
 } from 'lucide-react';
 
 // Components
@@ -13,12 +13,16 @@ import KPICard from '../components/KPICard';
 import ChartCard from '../components/ChartCard';
 import MultiSelect from '../components/MultiSelect';
 import AICopilot from '../components/AICopilot';
+import OverviewTab from '../components/tabs/OverviewTab';
+import QoSTab from '../components/tabs/QoSTab';
+import BottleneckTab from '../components/tabs/BottleneckTab';
 
 // Data
 import { mockSCData, mockHTData, STATUSES, LOCATIONS, BRANCHES, PRIORITIES } from '../data/mockData';
 
 export default function Dashboard() {
   const [viewMode, setViewMode] = useState('SC'); // 'SC' or 'HT'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'qos', 'bottleneck'
   
   // Real Filter States (Multi-select uses arrays now)
   const [dateRange, setDateRange] = useState('30'); // '7' or '30'
@@ -69,62 +73,6 @@ export default function Dashboard() {
     return { total, impactedCustomers, slaRate, avgTime, sosCount, criticalCount };
   }, [data]);
 
-  // Chart Data calculations... (Same as before but using the separate data)
-  const statusData = useMemo(() => {
-    return STATUSES.map(s => ({
-      name: s.name,
-      value: data.filter(t => t.status === s.name).length,
-      color: s.color
-    }));
-  }, [data]);
-
-  const trendData = useMemo(() => {
-    const dateMap = {};
-    data.forEach(t => {
-      dateMap[t.created_date] = (dateMap[t.created_date] || 0) + 1;
-    });
-    return Object.entries(dateMap)
-      .map(([date, count]) => ({ date, count }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [data]);
-
-  const branchData = useMemo(() => {
-    const branchMap = {};
-    data.forEach(t => {
-      branchMap[t.branch_name] = (branchMap[t.branch_name] || 0) + 1;
-    });
-    return Object.entries(branchMap)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [data]);
-
-  const staffData = useMemo(() => {
-    const staffMap = {};
-    data.forEach(t => {
-      staffMap[t.staff_name] = (staffMap[t.staff_name] || 0) + 1;
-    });
-    return Object.entries(staffMap)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [data]);
-
-  // Top Reasons
-  const topReasons = useMemo(() => {
-    const counts = {};
-    data.forEach(t => counts[t.reason] = (counts[t.reason] || 0) + 1);
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(i => ({ name: i[0], value: i[1] }));
-  }, [data]);
-  
-  // Issue Group Distribution
-  const groupData = useMemo(() => {
-    const counts = {};
-    data.forEach(t => counts[t.issue_group] = (counts[t.issue_group] || 0) + 1);
-    const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6'];
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map((i, idx) => ({ name: i[0], value: i[1], color: COLORS[idx % COLORS.length] }));
-  }, [data]);
-
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
       <header className="max-w-7xl mx-auto mb-8">
@@ -156,24 +104,6 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Thời gian</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <select 
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className="pl-10 pr-4 py-2.5 w-full bg-gray-50 border-none rounded-xl text-sm font-medium appearance-none select-none cursor-pointer hover:bg-gray-100 transition-colors"
-                style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-              >
-                <option value="30">30 ngày gần nhất</option>
-                <option value="7">7 ngày gần nhất</option>
-                <option value="all">Tất cả thời gian</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5 x-40">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Thời gian</label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -239,146 +169,37 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* Tab Navigation Menu */}
+        <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
+          <button 
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'overview' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+          >
+            <LayoutDashboard size={18} />
+            Tổng quan (Overview)
+          </button>
+          <button 
+            onClick={() => setActiveTab('qos')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'qos' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+          >
+            <Target size={18} />
+            Đánh giá Chất lượng (QoS/CX)
+          </button>
+          <button 
+            onClick={() => setActiveTab('bottleneck')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'bottleneck' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+          >
+            <GitBranch size={18} />
+            Phân tích Ùn tắc (Bottlenecks)
+          </button>
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto space-y-6">
-        {/* SOS Alerts Banner */}
-        {(stats.sosCount > 0 || stats.criticalCount > 0) && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 flex items-center justify-between text-red-600 animate-pulse-slow shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-red-100 rounded-full">
-                <AlertTriangle size={24} className="text-red-500" />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg">Cảnh báo Điểm nóng!</h3>
-                <p className="text-sm font-medium text-gray-700">
-                  Hiện có <strong className="text-red-600">{stats.sosCount} vé SOS</strong> và <strong className="text-red-600">{stats.criticalCount} vé Vượt mức khẩn cấp (P5-P6)</strong> đang treo trên hệ thống.
-                </p>
-              </div>
-            </div>
-            <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold shadow-md transition-transform scale-100 active:scale-95 whitespace-nowrap hidden sm:block">
-              Xử lý ngay
-            </button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <KPICard 
-            title="Tổng số Ticket" 
-            value={stats.total} 
-            icon={Ticket} 
-            colorClass={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }}
-            trend={12}
-          />
-          <KPICard 
-            title="Khách hàng ảnh hưởng" 
-            value={stats.impactedCustomers.toLocaleString()} 
-            icon={Users} 
-            colorClass={{ bg: 'bg-rose-50', text: 'text-rose-600' }}
-            trend={-5}
-          />
-          <KPICard 
-            title="Tỷ lệ Đúng hạn SLA" 
-            value={stats.slaRate} 
-            unit="%"
-            icon={Clock} 
-            colorClass={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }}
-            trend={2.4}
-          />
-          <KPICard 
-            title="Thời gian xử lý TB" 
-            value={stats.avgTime} 
-            unit="Phút"
-            icon={Zap} 
-            colorClass={{ bg: 'bg-amber-50', text: 'text-amber-600' }}
-            trend={-8}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <ChartCard title="Phân bổ Trạng thái Xử lý">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={8} dataKey="value">
-                  {statusData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Xu hướng Ticket phát sinh (30 ngày)" className="lg:col-span-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData}>
-                <defs>
-                  <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(val) => val.split('-').slice(2).join('/')} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                <Area type="monotone" dataKey="count" name="Số lượng" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ChartCard title="Top 5 Chi nhánh phát sinh nhiều nhất">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={branchData} margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={false} />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 13, fontWeight: 500 }} width={100} />
-                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}/>
-                <Bar dataKey="value" fill="#6366f1" radius={[0, 8, 8, 0]} barSize={24} name="Số ticket" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Top 5 Nhân sự xử lý tích cực nhất">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={staffData} margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={false} />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 13, fontWeight: 500 }} width={120} />
-                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}/>
-                <Bar dataKey="value" fill="#10b981" radius={[0, 8, 8, 0]} barSize={24} name="Đã xử lý" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
-
-        {/* RCA Row - Deep Analytics based on scc_ht_schema */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
-          <ChartCard title="Top 5 Nguyên nhân gốc rễ (Root Causes)">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={topReasons} margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={false} />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 13, fontWeight: 500, fill: '#ef4444' }} width={120} />
-                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}/>
-                <Bar dataKey="value" fill="#ef4444" radius={[0, 8, 8, 0]} barSize={24} name="Số lượng lõi" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Phân bổ Lỗ hổng theo Nhóm thiết bị (Issue Groups)">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={groupData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value">
-                  {groupData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
+        {activeTab === 'overview' && <OverviewTab data={data} stats={stats} />}
+        {activeTab === 'qos' && <QoSTab data={data} />}
+        {activeTab === 'bottleneck' && <BottleneckTab data={data} />}
       </main>
 
       <footer className="max-w-7xl mx-auto mt-12 pb-8 flex justify-between items-center text-sm text-gray-400 border-t border-gray-100 pt-6">
