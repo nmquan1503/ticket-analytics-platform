@@ -73,14 +73,6 @@ export default function Dashboard() {
         const past = new Date();
         past.setDate(now.getDate() - 30);
         if (tDate < past) return false;
-      } else if (dateRange.startsWith('Q')) {
-        const quarter = parseInt(dateRange[1]);
-        const year = now.getFullYear();
-        const startMonth = (quarter - 1) * 3;
-        const endMonth = startMonth + 2;
-        const startDate = new Date(year, startMonth, 1);
-        const endDate = new Date(year, endMonth + 1, 0);
-        if (tDate < startDate || tDate > endDate) return false;
       }
       return true;
     });
@@ -141,10 +133,6 @@ export default function Dashboard() {
               >
                 <option value="30">30 ngày gần nhất</option>
                 <option value="7">7 ngày gần nhất</option>
-                <option value="Q1">Quý 1 ({now.getFullYear()})</option>
-                <option value="Q2">Quý 2 ({now.getFullYear()})</option>
-                <option value="Q3">Quý 3 ({now.getFullYear()})</option>
-                <option value="Q4">Quý 4 ({now.getFullYear()})</option>
                 <option value="all">Tất cả thời gian</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
