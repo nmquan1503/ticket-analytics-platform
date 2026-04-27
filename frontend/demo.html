@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCC & HT Dashboard Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        .active-tab { background-color: #4f46e5; color: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Dashboard Quản lý Ticket</h1>
+                    <p class="text-gray-500 mt-1">Hệ thống giám sát vận hành Sự cố (SC) & Hỗ trợ (HT)</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="bg-white p-1 rounded-xl shadow-sm border border-gray-100 flex">
+                        <button onclick="switchMode('SC')" id="btn-sc" class="px-6 py-2 rounded-lg text-sm font-semibold transition-all active-tab">Sự Cố (SC)</button>
+                        <button onclick="switchMode('HT')" id="btn-ht" class="px-6 py-2 rounded-lg text-sm font-semibold transition-all text-gray-600 hover:bg-gray-50">Hỗ Trợ (HT)</button>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 border-2 border-white shadow-sm ring-2 ring-indigo-50">
+                        <i data-lucide="user" class="w-5 h-5"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Thời gian</label>
+                    <div class="relative">
+                        <i data-lucide="calendar" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                        <select onchange="switchMode('refresh')" class="pl-10 pr-4 py-2.5 w-full bg-gray-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer hover:bg-gray-100">
+                            <option>30 ngày gần nhất</option>
+                            <option>7 ngày gần nhất</option>
+                            <option>Tất cả thời gian</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none"></i>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Khu vực (dim_locations)</label>
+                    
+                    <div class="relative" id="ms-location-container">
+                        <i data-lucide="map-pin" class="absolute left-3 top-2.5 text-gray-400 w-4 h-4"></i>
+                        <div id="ms-location-inject"></div>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Chi nhánh (dim_branches)</label>
+                    
+                    <div class="relative" id="ms-branch-container">
+                        <i data-lucide="briefcase" class="absolute left-3 top-2.5 text-gray-400 w-4 h-4"></i>
+                        <div id="ms-branch-inject"></div>
+                    </div>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="switchMode('refresh')" class="w-full py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all shadow-sm active:scale-95 cursor-pointer">
+                        <i data-lucide="filter" class="w-4 h-4"></i>
+                        Xóa bộ lọc
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- KPI Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="p-3 rounded-xl bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-110">
+                        <i data-lucide="ticket" class="w-6 h-6"></i>
+                    </div>
+                    <span class="text-xs font-medium text-emerald-600 flex items-center bg-emerald-50 px-2 py-0.5 rounded-full">+12%</span>
+                </div>
+                <p class="text-sm font-medium text-gray-500 mb-1" id="kpi-1-title">Tổng số Ticket SC</p>
+                <h3 class="text-2xl font-bold text-gray-900" id="kpi-1-val">1,248</h3>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="p-3 rounded-xl bg-rose-50 text-rose-600 transition-transform group-hover:scale-110">
+                        <i data-lucide="users" class="w-6 h-6"></i>
+                    </div>
+                    <span class="text-xs font-medium text-rose-600 flex items-center bg-rose-50 px-2 py-0.5 rounded-full">-5%</span>
+                </div>
+                <p class="text-sm font-medium text-gray-500 mb-1">KHG ảnh hưởng</p>
+                <h3 class="text-2xl font-bold text-gray-900" id="kpi-2-val">24,592</h3>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="p-3 rounded-xl bg-indigo-50 text-indigo-600 transition-transform group-hover:scale-110">
+                        <i data-lucide="clock" class="w-6 h-6"></i>
+                    </div>
+                    <span class="text-xs font-medium text-emerald-600 flex items-center bg-emerald-50 px-2 py-0.5 rounded-full">+2.4%</span>
+                </div>
+                <p class="text-sm font-medium text-gray-500 mb-1">Tỷ lệ Đúng hạn SLA</p>
+                <div class="flex items-baseline gap-1">
+                    <h3 class="text-2xl font-bold text-gray-900" id="kpi-3-val">84.2</h3>
+                    <span class="text-sm text-gray-400 font-normal">%</span>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="p-3 rounded-xl bg-amber-50 text-amber-600 transition-transform group-hover:scale-110">
+                        <i data-lucide="zap" class="w-6 h-6"></i>
+                    </div>
+                    <span class="text-xs font-medium text-rose-600 flex items-center bg-rose-50 px-2 py-0.5 rounded-full">-8%</span>
+                </div>
+                <p class="text-sm font-medium text-gray-500 mb-1">Thời gian xử lý TB</p>
+                <div class="flex items-baseline gap-1">
+                    <h3 class="text-2xl font-bold text-gray-900" id="kpi-4-val">96</h3>
+                    <span class="text-sm text-gray-400 font-normal">Phút</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-800 mb-6 font-sans">Trạng thái Xử lý</h3>
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
+                <h3 class="text-lg font-semibold text-gray-800 mb-6 font-sans">Xu hướng Ticket phát sinh</h3>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ranking Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-800 mb-6 font-sans">Top 5 Chi nhánh nhiều SC nhất</h3>
+                <div class="chart-container">
+                    <canvas id="branchChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-800 mb-6 font-sans">Top 5 Nhân sự xử lý tích cực</h3>
+                <div class="chart-container">
+                    <canvas id="staffChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        let charts = {};
+
+        function initCharts() {
+            // Status Chart (Donut)
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            charts.status = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['New', 'Inprogress', 'Resolved', 'Closed'],
+                    datasets: [{
+                        data: [25, 23, 24, 28],
+                        backgroundColor: ['#6366f1', '#f59e0b', '#10b981', '#64748b'],
+                        borderWidth: 0,
+                        padding: 10
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, font: { size: 12, family: 'Inter' } } }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Trend Chart (Area Line)
+            const ctxTrend = document.getElementById('trendChart').getContext('2d');
+            const gradient = ctxTrend.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.2)');
+            gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+            charts.trend = new Chart(ctxTrend, {
+                type: 'line',
+                data: {
+                    labels: ['01/11', '02/11', '03/11', '04/11', '05/11', '06/11', '07/11'],
+                    datasets: [{
+                        label: 'Số lượng',
+                        data: [42, 38, 55, 48, 62, 51, 58],
+                        borderColor: '#6366f1',
+                        borderWidth: 3,
+                        fill: true,
+                        backgroundColor: gradient,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { display: false },
+                        x: { grid: { display: false }, ticks: { font: { size: 11, family: 'Inter' } } }
+                    }
+                }
+            });
+
+            // Branch Chart (Horizontal Bar)
+            const ctxBranch = document.getElementById('branchChart').getContext('2d');
+            charts.branch = new Chart(ctxBranch, {
+                type: 'bar',
+                data: {
+                    labels: ['HN 10', 'HCM 5', 'KHA 2', 'ĐN', 'Hải Phòng'],
+                    datasets: [{
+                        data: [85, 72, 64, 45, 38],
+                        backgroundColor: '#6366f1',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { border: { display: false }, grid: { display: false }, ticks: { font: { size: 12, weight: '500', family: 'Inter' } } }
+                    }
+                }
+            });
+
+             // Staff Chart (Horizontal Bar)
+             const ctxStaff = document.getElementById('staffChart').getContext('2d');
+            charts.staff = new Chart(ctxStaff, {
+                type: 'bar',
+                data: {
+                    labels: ['QunNM96', 'ManhLV6', 'ThaoTT', 'NamPH', 'KienDT'],
+                    datasets: [{
+                        data: [112, 98, 85, 74, 62],
+                        backgroundColor: '#10b981',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { border: { display: false }, grid: { display: false }, ticks: { font: { size: 12, weight: '500', family: 'Inter' } } }
+                    }
+                }
+            });
+        }
+
+        function switchMode(mode) {
+            if (mode !== 'refresh') {
+                const isSC = mode === 'SC';
+                document.getElementById('btn-sc').classList.toggle('active-tab', isSC);
+                document.getElementById('btn-sc').classList.toggle('text-gray-600', !isSC);
+                document.getElementById('btn-ht').classList.toggle('active-tab', !isSC);
+                document.getElementById('btn-ht').classList.toggle('text-gray-600', isSC);
+                document.getElementById('kpi-1-title').innerText = `Tổng số Ticket ${mode}`;
+            }
+            
+            // Randomize data for demo when filters or mode changes
+            charts.status.data.datasets[0].data = Array.from({length: 4}, () => Math.floor(Math.random() * 50) + 10);
+            charts.status.update();
+
+            charts.trend.data.datasets[0].data = Array.from({length: 7}, () => Math.floor(Math.random() * 60) + 20);
+            charts.trend.update();
+
+            charts.branch.data.datasets[0].data = Array.from({length: 5}, () => Math.floor(Math.random() * 90) + 20).sort((a,b)=>b-a);
+            charts.branch.update();
+
+            charts.staff.data.datasets[0].data = Array.from({length: 5}, () => Math.floor(Math.random() * 120) + 40).sort((a,b)=>b-a);
+            charts.staff.update();
+
+            document.getElementById('kpi-1-val').innerText = (Math.floor(Math.random() * 1000) + 500).toLocaleString();
+            document.getElementById('kpi-2-val').innerText = (Math.floor(Math.random() * 20000) + 5000).toLocaleString();
+        }
+
+        window.onload = initCharts;
+    </script>
+</body>
+</html>
