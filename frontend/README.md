@@ -83,6 +83,8 @@ npm run preview
 
 ## 🌟 Tính năng "Đắt giá" trong Code
 *   **Multi-Select Filters:** Bộ lọc Chi nhánh, Vùng miền, Mức độ ưu tiên hỗ trợ chọn nhiều mục cùng lúc.
+*   **Hierarchical Cascading Filter:** Logic lọc phân cấp thông minh (Khu vực ➡️ Chi nhánh) giúp dữ liệu luôn nhất quán.
+*   **Quarterly BI Reporting:** Khả năng bóc tách dữ liệu theo 4 Quý (Q1-Q4) trong năm, hỗ trợ báo cáo chiến lược.
 *   **Real-time Filter Logic:** Dữ liệu tự động tính toán lại tức thì qua `useMemo` khi người dùng thay đổi bất kỳ bộ lọc nào.
 *   **Responsive Design:** Tự động co giãn từ màn hình Laptop 2K đến màn hình điện thoại di động (Mobile).
 *   **Icon-Sync:** Hệ thống icon Lucide đồng bộ hoàn toàn với phiên bản thư viện v0.284.0 để đảm bảo không bị crash UI.
