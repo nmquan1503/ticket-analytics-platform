@@ -120,6 +120,35 @@ npm run preview
 
 ---
 
+## 🧠 Cơ chế Giao diện Thông minh (Smart UI Logic)
+
+Hệ thống được tích hợp các logic xử lý giao diện tự động để tối ưu trải nghiệm người dùng, tránh gây tràn ngập thông tin:
+
+### 1. Phân cấp Chế độ xem (View Mode Context)
+Dashboard có hai "linh hồn" dữ liệu khác nhau là **Sự Cố (SC)** và **Hỗ Trợ (HT)**. 
+*   **Chế độ Mặc định (SC):** Giao diện sẽ tập trung vào hạ tầng, thiết bị và các chỉ số kỹ thuật thuần túy.
+*   **Chế độ Nâng cao (HT):** Khi sếp bấm nút **Hỗ Trợ (HT)**, hệ thống sẽ tự động "mở khoá" và kích hoạt thêm các biểu đồ chuyên biệt ở dưới cùng như:
+    *   **Tỷ lệ Vượt tuyến (Escalation Rate):** Đo lường tính tự chủ của các chi nhánh.
+    *   **Phân khúc Khách hàng:** Phân tích trọng tâm khách hàng doanh nghiệp, tập đoàn...
+*   *Lợi ích:* Giúp Dashboard luôn gọn gàng nhưng vẫn đầy đủ chiều sâu khi cần thiết.
+
+### 2. Logic Bộ lọc Phân cấp (Cascading Filters)
+Thay vì để sếp phải tìm kiếm trong danh sách hàng trăm chi nhánh, hệ thống sử dụng logic lọc cha-con:
+*   **Khu vực (Cha):** Khi sếp chọn "Hà Nội", "Đà Nẵng", v.v.
+*   **Chi nhánh (Con):** Danh sách chi nhánh sẽ tự động lọc lại, chỉ hiển thị những chi nhánh thuộc vùng địa lý đó.
+*   **Xác thực dữ liệu:** Nếu sếp đổi khu vực khác, các chi nhánh cũ đã chọn sẽ tự động được dọn dẹp để tránh sai sót dữ liệu.
+
+### 3. Hệ thống Cảnh báo Thông minh (Alert Banner)
+Dashboard không chỉ là những biểu đồ vô tri. Hệ thống sẽ quét toàn bộ dữ liệu theo thời gian thực:
+*   Nếu phát hiện Ticket có cờ **SOS** hoặc Ticket **Mức ưu tiên 5-6** (Cực kỳ khẩn cấp), một **Banner đỏ cảnh báo** sẽ tự động hiện lên với hiệu ứng nhấp nháy để nhắc sếp xử lý ngay.
+
+### 4. Tương tác BI 360 độ
+*   **Tooltip:** Di chuột vào bất kỳ điểm nào trên biểu đồ để xem con số chi tiết đến từng đơn vị.
+*   **Responsive:** Grid lọc 5 cột tự động co giãn cực kỳ linh hoạt, đảm bảo sếp dùng máy tính bảng hay điện thoại vẫn thao tác chuẩn xác.
+
+---
+
 **✍️ Được phát triển bởi:** Antigravity AI Partner
+
 
 **📅 Phiên bản:** 2.0.0 (Full SQL Schema Integration)
