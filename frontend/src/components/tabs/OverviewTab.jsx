@@ -229,9 +229,18 @@ export default function OverviewTab({ data, stats, viewMode }) {
 
           <ChartCard title="Phân khúc Khách hàng hỗ trợ">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={customerTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <BarChart data={customerTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fill: '#64748b' }} 
+                  interval={0}
+                  angle={-30}
+                  textAnchor="end"
+                  height={60}
+                />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                 <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Số lượng" />
