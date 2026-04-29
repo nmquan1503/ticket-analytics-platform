@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from typing import Optional, List
 
+from app.api.mock_scaler import mock_scale
 from app.schemas.analytics import TicketFilter
 from app.services.analytics.ht_service import HTAnalyticService
 
@@ -24,6 +25,7 @@ def build_filter(
 
 
 @router.get("/")
+@mock_scale
 def analytics_root():
     return {"message": "HT Analytics service is running (MOCK DATA)"}
 
@@ -32,6 +34,7 @@ def analytics_root():
 # KPI tổng quan
 # ---------------------------------------------------------------
 @router.get("/kpi")
+@mock_scale
 def get_kpi(filter: TicketFilter = Depends(build_filter)):
     # return ht_service.get_kpi(filter)
     return {
@@ -52,6 +55,7 @@ def get_kpi(filter: TicketFilter = Depends(build_filter)):
 # Trend theo ngày
 # ---------------------------------------------------------------
 @router.get("/trend")
+@mock_scale
 def get_trend(filter: TicketFilter = Depends(build_filter)):
     # return ht_service.get_trend(filter)
     return [
@@ -67,6 +71,7 @@ def get_trend(filter: TicketFilter = Depends(build_filter)):
 # So sánh cùng kỳ
 # ---------------------------------------------------------------
 @router.get("/period_comparison")
+@mock_scale
 def get_period_comparison(
     filter: TicketFilter = Depends(build_filter),
     period: str = Query("month", description="month, week, quarter")
@@ -84,6 +89,7 @@ def get_period_comparison(
 # Phân phối theo bước xử lý
 # ---------------------------------------------------------------
 @router.get("/step_distribution")
+@mock_scale
 def get_step_distribution(filter: TicketFilter = Depends(build_filter)):
     # return ht_service.get_step_distribution(filter)
     return [
@@ -98,6 +104,7 @@ def get_step_distribution(filter: TicketFilter = Depends(build_filter)):
 # Phân phối theo deadline_status
 # ---------------------------------------------------------------
 @router.get("/deadline_distribution")
+@mock_scale
 def get_deadline_distribution(filter: TicketFilter = Depends(build_filter)):
     # return ht_service.get_deadline_distribution(filter)
     return [
@@ -111,6 +118,7 @@ def get_deadline_distribution(filter: TicketFilter = Depends(build_filter)):
 # Top queue xử lý
 # ---------------------------------------------------------------
 @router.get("/top_processing_queues")
+@mock_scale
 def get_top_processing_queues(
     filter: TicketFilter = Depends(build_filter),
     limit: int = Query(10, description="Số lượng top")
@@ -129,6 +137,7 @@ def get_top_processing_queues(
 # Phân tích thời gian phản hồi (histogram)
 # ---------------------------------------------------------------
 @router.get("/response_time_analysis")
+@mock_scale
 def get_response_time_analysis(filter: TicketFilter = Depends(build_filter)):
     # return ht_service.get_response_time_analysis(filter)
     return {
@@ -156,6 +165,7 @@ def get_response_time_analysis(filter: TicketFilter = Depends(build_filter)):
 # Pivot SLA theo loại dịch vụ
 # ---------------------------------------------------------------
 @router.get("/sla_by_service_pivot")
+@mock_scale
 def get_sla_by_service_pivot(filter: TicketFilter = Depends(build_filter)):
     # return ht_service.get_sla_by_service_pivot(filter)
     return [
@@ -170,6 +180,7 @@ def get_sla_by_service_pivot(filter: TicketFilter = Depends(build_filter)):
 # Tương quan tuổi thọ ticket và số lần từ chối
 # ---------------------------------------------------------------
 @router.get("/correlation_age_rejection")
+@mock_scale
 def get_correlation_age_rejection(filter: TicketFilter = Depends(build_filter)):
     # return ht_service.get_correlation_age_rejection(filter)
     return {

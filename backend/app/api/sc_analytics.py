@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query, Body
 from typing import Optional, List
 
+from app.api.mock_scaler import mock_scale
 from app.schemas.analytics import TicketFilter
 from app.services.analytics.sc_service import SCAnalyticService
 
@@ -24,6 +25,7 @@ def build_filter(
 
 
 @router.get("/")
+@mock_scale
 def analytics_root():
     return {"message": "SC Analytics service is running (MOCK DATA)"}
 
@@ -32,6 +34,7 @@ def analytics_root():
 # KPI
 # ---------------------------------------------------------------
 @router.get("/kpi")
+@mock_scale
 def get_kpi(filter: TicketFilter = Depends(build_filter)):
     # return sc_service.get_kpi(filter)
     return {
@@ -51,6 +54,7 @@ def get_kpi(filter: TicketFilter = Depends(build_filter)):
 # Trend
 # ---------------------------------------------------------------
 @router.get("/trend")
+@mock_scale
 def get_trend(filter: TicketFilter = Depends(build_filter)):
     # return sc_service.get_trend(filter)
     return [
@@ -66,6 +70,7 @@ def get_trend(filter: TicketFilter = Depends(build_filter)):
 # So sánh cùng kỳ
 # ---------------------------------------------------------------
 @router.get("/period_comparison")
+@mock_scale
 def get_period_comparison(
     filter: TicketFilter = Depends(build_filter),
     period: str = Query("month", description="month, week, quarter")
@@ -83,6 +88,7 @@ def get_period_comparison(
 # Phân phối thời gian xử lý
 # ---------------------------------------------------------------
 @router.get("/processing_time_distribution")
+@mock_scale
 def get_processing_time_distribution(filter: TicketFilter = Depends(build_filter)):
     # return sc_service.get_processing_time_distribution(filter)
     return {
@@ -108,6 +114,7 @@ def get_processing_time_distribution(filter: TicketFilter = Depends(build_filter
 # Pivot table
 # ---------------------------------------------------------------
 @router.get("/pivot_device_by_shift")
+@mock_scale
 def get_pivot_device_by_shift(filter: TicketFilter = Depends(build_filter)):
     # return sc_service.get_pivot_device_by_shift(filter)
     return [
@@ -121,6 +128,7 @@ def get_pivot_device_by_shift(filter: TicketFilter = Depends(build_filter)):
 # Tương quan
 # ---------------------------------------------------------------
 @router.get("/correlation")
+@mock_scale
 def get_correlation(filter: TicketFilter = Depends(build_filter)):
     # return sc_service.get_correlation(filter)
     return {
@@ -133,6 +141,7 @@ def get_correlation(filter: TicketFilter = Depends(build_filter)):
 # Top N có xếp hạng
 # ---------------------------------------------------------------
 @router.get("/top_branches_ranked")
+@mock_scale
 def get_top_branches_ranked(
     filter: TicketFilter = Depends(build_filter),
     limit: int = Query(10, description="Số lượng top")
@@ -152,6 +161,7 @@ def get_top_branches_ranked(
 # Oracle Text Search
 # ---------------------------------------------------------------
 @router.get("/search_incidents")
+@mock_scale
 def search_incidents(
     keyword: str = Query(..., description="Từ khóa tìm kiếm"),
     filter: TicketFilter = Depends(build_filter)
@@ -167,6 +177,7 @@ def search_incidents(
 # Cây sự cố
 # ---------------------------------------------------------------
 @router.get("/incident_tree")
+@mock_scale
 def get_incident_tree(root_ticket_id: int = Query(...)):
     # return sc_service.get_incident_tree(root_ticket_id)
     return [
@@ -179,6 +190,7 @@ def get_incident_tree(root_ticket_id: int = Query(...)):
 # Pareto
 # ---------------------------------------------------------------
 @router.get("/pareto_issue_groups")
+@mock_scale
 def get_pareto_issue_groups(filter: TicketFilter = Depends(build_filter)):
     # return sc_service.get_pareto_issue_groups(filter)
     return [
@@ -192,6 +204,7 @@ def get_pareto_issue_groups(filter: TicketFilter = Depends(build_filter)):
 # Ca hiện tại vs ca trước
 # ---------------------------------------------------------------
 @router.get("/current_shift_vs_previous")
+@mock_scale
 def get_current_shift_vs_previous(filter: TicketFilter = Depends(build_filter)):
     # return sc_service.get_current_shift_vs_previous(filter)
     return {
@@ -204,6 +217,7 @@ def get_current_shift_vs_previous(filter: TicketFilter = Depends(build_filter)):
 # AI/ML Insights (mock)
 # ---------------------------------------------------------------
 @router.get("/forecast")
+@mock_scale
 def get_forecast(
     filter: TicketFilter = Depends(build_filter),
     days_ahead: int = Query(7, description="Số ngày dự báo")
@@ -222,6 +236,7 @@ def get_forecast(
 
 
 @router.get("/anomalies")
+@mock_scale
 def get_anomalies(filter: TicketFilter = Depends(build_filter)):
     # return sc_service.get_anomalies(filter)
     return [
@@ -231,6 +246,7 @@ def get_anomalies(filter: TicketFilter = Depends(build_filter)):
 
 
 @router.get("/clusters")
+@mock_scale
 def get_clusters(filter: TicketFilter = Depends(build_filter)):
     # return sc_service.get_clusters(filter)
     return [
@@ -240,6 +256,7 @@ def get_clusters(filter: TicketFilter = Depends(build_filter)):
 
 
 @router.post("/predicted_priority")
+@mock_scale
 def predicted_priority(description: str = Body(..., embed=True)):
     # return sc_service.get_predicted_priority(description)
     return {"predicted_priority": "3"}
