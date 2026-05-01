@@ -1,48 +1,9 @@
--- ============================================================
--- Oracle SQL Script (dành cho Oracle Database 12c trở lên)
--- Chuyển đổi từ MySQL dump của database scc_ht
--- ============================================================
-
--- Cleanup (nếu cần chạy lại)
--- DROP TABLE ... CASCADE CONSTRAINTS;
-DROP TABLE ticket_pop CASCADE CONSTRAINTS;
-DROP TABLE ticket_location CASCADE CONSTRAINTS;
-DROP TABLE ticket_interface CASCADE CONSTRAINTS;
-DROP TABLE ticket_device CASCADE CONSTRAINTS;
-DROP TABLE ticket_branch CASCADE CONSTRAINTS;
-DROP TABLE ht_ticket_history CASCADE CONSTRAINTS;
-DROP TABLE keywords CASCADE CONSTRAINTS;
-DROP TABLE chat_history CASCADE CONSTRAINTS;
-DROP TABLE fact_sc_tickets CASCADE CONSTRAINTS;
-DROP TABLE fact_ht_tickets CASCADE CONSTRAINTS;
-DROP TABLE fact_tickets CASCADE CONSTRAINTS;
-DROP TABLE fact_ticket_process CASCADE CONSTRAINTS;
-DROP TABLE fact_ticket_creation CASCADE CONSTRAINTS;
-DROP TABLE fact_ticket_time CASCADE CONSTRAINTS;
-DROP TABLE examples CASCADE CONSTRAINTS;
-DROP TABLE sessions CASCADE CONSTRAINTS;
-DROP TABLE dim_ticket_description CASCADE CONSTRAINTS;
-DROP TABLE dim_ticket_close CASCADE CONSTRAINTS;
-DROP TABLE dim_staffs CASCADE CONSTRAINTS;
-DROP TABLE dim_regions CASCADE CONSTRAINTS;
-DROP TABLE dim_reasons CASCADE CONSTRAINTS;
-DROP TABLE dim_queues CASCADE CONSTRAINTS;
-DROP TABLE dim_processing_units CASCADE CONSTRAINTS;
-DROP TABLE dim_pops CASCADE CONSTRAINTS;
-DROP TABLE dim_locations CASCADE CONSTRAINTS;
-DROP TABLE dim_issue_names CASCADE CONSTRAINTS;
-DROP TABLE dim_issue_groups CASCADE CONSTRAINTS;
-DROP TABLE dim_interfaces CASCADE CONSTRAINTS;
-DROP TABLE dim_ht_support_types CASCADE CONSTRAINTS;
-DROP TABLE dim_ht_steps CASCADE CONSTRAINTS;
-DROP TABLE dim_ht_service_types CASCADE CONSTRAINTS;
-DROP TABLE dim_ht_queue_types CASCADE CONSTRAINTS;
-DROP TABLE dim_ht_customer_types CASCADE CONSTRAINTS;
-DROP TABLE dim_ht_actions CASCADE CONSTRAINTS;
-DROP TABLE dim_devices CASCADE CONSTRAINTS;
-DROP TABLE dim_device_types CASCADE CONSTRAINTS;
-DROP TABLE dim_branches CASCADE CONSTRAINTS;
-
+ALTER SESSION SET CURRENT_SCHEMA = SYSTEM;
+BEGIN
+  DBMS_SCHEDULER.DROP_JOB('REFRESH_UNIQUE_VALUE_COLUMNS', force => TRUE);
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
 --------------------------------------------------------------
 -- 1. dim_branches
 --------------------------------------------------------------
@@ -282,7 +243,7 @@ CREATE TABLE dim_staffs (
 COMMENT ON TABLE dim_staffs IS '[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Các nhân sự.|Gồm các cột: id, name, mail.';
 COMMENT ON COLUMN dim_staffs.id IS '[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Khóa chính.|Ví dụ giá trị: 1.';
 COMMENT ON COLUMN dim_staffs.name IS 'UNIQUE_VALUES.[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Ý nghĩa: Tên đầy đủ của nhân sự.|Ví dụ giá trị: "Nguyen Minh Quan". Ví dụ câu hỏi: Số SC do Lê Văn Mạnh tạo trong ngày 1/11.';
-COMMENT ON COLUMN dim_staffs.mail IS 'UNIQUE_VALUES.[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Email của nhân sự|, phần prefix của email có thể được sử dụng làm tên gọi trong hệ thống. Ví dụ giá trị: "QuanNM96@fpt.com". Ví dụ câu hỏi: Số SC do ManhLV6 tạo trong ngày 1/11.';
+COMMENT ON COLUMN dim_staffs.mail IS 'UNIQUE_VALUES.[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Email của nhân sự|, phần prefix của email có thể được sử dụng làm tên gọi trong hệ thống. Ví dụ giá trị: "QuanNM96@gmail.com". Ví dụ câu hỏi: Số SC do ManhLV6 tạo trong ngày 1/11.';
 
 --------------------------------------------------------------
 -- 20. dim_ticket_close
@@ -323,8 +284,9 @@ COMMENT ON COLUMN dim_ticket_description.description IS '[Hệ thống ticket SC
 --------------------------------------------------------------
 CREATE TABLE examples (
     question CLOB NOT NULL,
-    answer   CLOB
-);
+    answer   CLOB,
+    emb VECTOR(1024, FLOAT32)
+) TABLESPACE USERS;
 
 COMMENT ON TABLE examples IS 'Bảng chứa câu hỏi và câu trả lời mẫu.';
 
@@ -381,7 +343,7 @@ CREATE TABLE fact_ticket_creation (
     sc_creation_time    NUMBER,
     created_staff_id    NUMBER(10),
     created_datetime    DATE,
-    "date"              DATE,
+    "date"              DATE NOT NULL,
     "week"              VARCHAR2(50 CHAR),
     "month"             VARCHAR2(50 CHAR),
     "period"            VARCHAR2(50 CHAR),
@@ -390,6 +352,11 @@ CREATE TABLE fact_ticket_creation (
     CONSTRAINT fk_fact_ticket_creation_staff FOREIGN KEY (created_staff_id)
         REFERENCES dim_staffs (id)
         ON DELETE CASCADE
+)
+PARTITION BY RANGE ("date")
+INTERVAL (NUMTODSINTERVAL(1, 'DAY'))
+(
+    PARTITION p_init VALUES LESS THAN (TO_DATE('2024-01-01', 'YYYY-MM-DD'))
 );
 
 COMMENT ON TABLE fact_ticket_creation IS '[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Thông tin chi tiết về việc khởi tạo|ticket. Bao gồm thông tin về phương thức tạo, thời gian tạo, thời điểm tạo, nhân sự tạo, ngày/tháng/tuần/năm/kỳ xảy ra sự cố và ca trực. Gồm các cột: id, sc_creation_method(Chỉ hệ thống SC), sc_creation_time(Chỉ hệ thống SC), created_staff_id(Chỉ hệ thống HT), created_datetime, date, week, month, period(Chỉ hệ thống SC), year, shift.';
@@ -405,7 +372,10 @@ COMMENT ON COLUMN fact_ticket_creation."period" IS '[Hệ thống ticket SC sự
 COMMENT ON COLUMN fact_ticket_creation."year" IS '[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Năm khởi tạo|ticket. Ví dụ: 2025.';
 COMMENT ON COLUMN fact_ticket_creation."shift" IS 'UNIQUE_VALUES.[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Ca trực khởi tạo|theo thời gian trực của nhân sự. Ví dụ giá trị: "Ca 1". Các từ khóa có thể liên quan: Ca 1, ca 2, ca ngày (tương đương ca 1), ca đêm (tương đương ca 2).';
 
-CREATE INDEX idx_creation_staff ON fact_ticket_creation (created_staff_id);
+CREATE INDEX idx_creation_staff ON fact_ticket_creation (created_staff_id) LOCAL;
+-- *** NEW: thêm Bitmap index cho shift, và B-tree cho date ***
+CREATE BITMAP INDEX idx_creation_shift ON fact_ticket_creation("shift") LOCAL;
+CREATE INDEX idx_creation_date ON fact_ticket_creation("date") LOCAL;
 
 --------------------------------------------------------------
 -- 26. fact_ticket_process
@@ -447,6 +417,7 @@ CREATE INDEX idx_process_staff ON fact_ticket_process (process_staff_id);
 CREATE INDEX idx_process_unit ON fact_ticket_process (processing_unit_id);
 CREATE INDEX idx_process_qcreate ON fact_ticket_process (queue_create_id);
 CREATE INDEX idx_process_qprocess ON fact_ticket_process (queue_process_id);
+CREATE INDEX idx_process_actual ON fact_ticket_process (CASE WHEN actual_time > 0 THEN actual_time END);
 
 --------------------------------------------------------------
 -- 27. fact_tickets (bảng trung tâm)
@@ -456,7 +427,7 @@ CREATE TABLE fact_tickets (
     code             VARCHAR2(50 CHAR),
     process_id       NUMBER(10),
     time_id          NUMBER(10),
-    creation_id      NUMBER(10),
+    creation_id      NUMBER(10) NOT NULL,
     closed_id        NUMBER(10),
     over_time        VARCHAR2(255 CHAR),
     reason_id        NUMBER(10),
@@ -482,7 +453,8 @@ CREATE TABLE fact_tickets (
     CONSTRAINT fk_fact_tickets_issue FOREIGN KEY (issue_name_id)
         REFERENCES dim_issue_names (id)
         ON DELETE CASCADE
-);
+)
+PARTITION BY REFERENCE (fk_fact_tickets_creation);
 
 COMMENT ON TABLE fact_tickets IS '[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Thông tin cơ bản của ticket. **Không được phép dùng lệnh FROM fact_tickets** mà cần truy vần từ các bảng fact ticket cụ thể như fact_sc_tickets, fact_ht_tickets, ... và join vào.|Chứa các khóa ngoại liên quan đến quá trình xử lý, thời gian, khởi tạo, đóng ticket, nguyên nhân, mức độ ưu tiên và tên sự cố .Gồm các cột: id, code, process_id, time_id, creation_id, closed_id(Chỉ hệ thống HT), over_time(Chỉ hệ thống SC), reason_id, priority, ticket_status, issue_name_id, required_time(Chỉ hệ thống HT).';
 COMMENT ON COLUMN fact_tickets.id IS '[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Khóa chính.|Ví dụ giá trị: 4.';
@@ -504,6 +476,9 @@ CREATE INDEX idx_tickets_creation ON fact_tickets (creation_id);
 CREATE INDEX idx_tickets_closed ON fact_tickets (closed_id);
 CREATE INDEX idx_tickets_reason ON fact_tickets (reason_id);
 CREATE INDEX idx_tickets_issue ON fact_tickets (issue_name_id);
+-- *** NEW: Bitmap index cho các cột hay lọc trong analytics ***
+CREATE BITMAP INDEX idx_ft_status ON fact_tickets(ticket_status) LOCAL;
+CREATE BITMAP INDEX idx_ft_priority ON fact_tickets(priority) LOCAL;
 
 --------------------------------------------------------------
 -- 28. fact_ht_tickets
@@ -542,7 +517,8 @@ CREATE TABLE fact_ht_tickets (
     CONSTRAINT fk_ht_tickets_step FOREIGN KEY (step_id)
         REFERENCES dim_ht_steps (id)
         ON DELETE CASCADE
-);
+)
+PARTITION BY REFERENCE (fk_ht_tickets_main);
 
 COMMENT ON TABLE fact_ht_tickets IS '[Hệ thống ticket HT hỗ trợ kỹ thuật] Thông tin chi tiết về ticket của hệ thống HT hỗ trợ kỹ thuật. **Từ bảng này cần join sang bảng fact_tickets**.|Gồm các cột: ticket_id, title, commitment_desc, required, ticket_open, sos_ticket_flag, customer_type_id, service_type_id, support_type_id, step_id, deadline_status, rejection_count, response_count, sla_violation_count, priority_handling_desc, is_escalated, scenario_confirmed, ticket_age_days.';
 COMMENT ON COLUMN fact_ht_tickets.ticket_id IS '[Hệ thống ticket HT hỗ trợ kỹ thuật] Khóa chính|tham chiếu tới fact_tickets.id.Ví dụ giá trị: 4.';
@@ -597,7 +573,8 @@ CREATE TABLE fact_sc_tickets (
     CONSTRAINT fk_sc_tickets_region FOREIGN KEY (region_id)
         REFERENCES dim_regions (id)
         ON DELETE CASCADE
-);
+)
+PARTITION BY REFERENCE (fk_sc_tickets_main);
 
 COMMENT ON TABLE fact_sc_tickets IS '[Hệ thống ticket SC sự cố] Thông tin chi tiết về ticket của hệ thống SC sự cố. **Từ bảng này cần join sang bảng fact_tickets**. Gồm các cột: ticket_id, description_id, cus_qty, device_type_id, suspend_time, sc_khg_status, sc_report_status, sc_type, region_id, sc_inf_explanation_status, sc_natural_disaster, parent.';
 COMMENT ON COLUMN fact_sc_tickets.ticket_id IS '[Hệ thống ticket SC sự cố] Khóa chính|tham chiếu tới fact_tickets.id.Ví dụ giá trị: 1.';
@@ -613,9 +590,18 @@ COMMENT ON COLUMN fact_sc_tickets.sc_inf_explanation_status IS 'UNIQUE+VALUES.[H
 COMMENT ON COLUMN fact_sc_tickets.sc_natural_disaster IS 'UNIQUE+VALUES.[Hệ thống ticket SC sự cố] Trạng thái ảnh hưởng bởi thời tiết, thiên tai có/không|của sự cố. Ví dụ giá trị: "Có". Các từ khóa có thể liên quan: thiên tai, bão lũ, lũ lụt.';
 COMMENT ON COLUMN fact_sc_tickets.parent IS '[Hệ thống ticket SC sự cố] Ticket cha hoặc con.';
 
-CREATE INDEX idx_sc_desc ON fact_sc_tickets (description_id);
-CREATE INDEX idx_sc_device ON fact_sc_tickets (device_type_id);
-CREATE INDEX idx_sc_region ON fact_sc_tickets (region_id);
+CREATE INDEX idx_sc_desc ON fact_sc_tickets (description_id) LOCAL;
+CREATE INDEX idx_sc_device ON fact_sc_tickets (device_type_id) LOCAL;
+CREATE INDEX idx_sc_region ON fact_sc_tickets (region_id) LOCAL;
+-- *** NEW: Bitmap index cho các flag hay dùng trong lọc/group by ***
+CREATE BITMAP INDEX idx_fsc_khg ON fact_sc_tickets(sc_khg_status) LOCAL;
+CREATE BITMAP INDEX idx_fsc_disaster ON fact_sc_tickets(sc_natural_disaster) LOCAL;
+
+--------------------------------------------------------------
+-- *** NEW: Oracle Text Index cho tìm kiếm mô tả (CONTAINS) ***
+--------------------------------------------------------------
+CREATE INDEX desc_ctx_idx ON dim_ticket_description(description)
+    INDEXTYPE IS CTXSYS.CONTEXT;
 
 --------------------------------------------------------------
 -- 30. ht_ticket_history
@@ -806,13 +792,1432 @@ CREATE INDEX idx_tp_pop ON ticket_pop (pop_id);
 
 COMMENT ON TABLE ticket_pop IS '[Dùng chung Hệ thống ticket HT hỗ trợ kỹ thuật và SC sự cố] Bảng liên kết nhiều-nhiều giữa ticket và các POP gây ra sự cố. Mỗi ticket có thể liên quan đến nhiều POP, mỗi POP có thể liên quan đến nhiều ticket.|Các cột: ticket_id, pop_id.';
 
+BEGIN
+  EXECUTE IMMEDIATE 'CREATE TABLE unique_value_columns (table_name VARCHAR2(128), column_name VARCHAR2(128), value_text VARCHAR2(4000))';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+END;
+/
+BEGIN
+  EXECUTE IMMEDIATE 'CREATE INDEX idx_uvc_table_column ON unique_value_columns(table_name, column_name)';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+END;
+/
+BEGIN
+  EXECUTE IMMEDIATE 'CREATE INDEX idx_uvc_value_text ON unique_value_columns(value_text)';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF;
+END;
+/
+CREATE OR REPLACE PROCEDURE refresh_unique_value_columns AS
+BEGIN
+  EXECUTE IMMEDIATE 'TRUNCATE TABLE unique_value_columns';
+  INSERT INTO unique_value_columns SELECT 'DIM_BRANCHES','BRANCH_NAME',BRANCH_NAME FROM DIM_BRANCHES WHERE BRANCH_NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_BRANCHES','CODE',CODE FROM DIM_BRANCHES WHERE CODE IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_DEVICE_TYPES','NAME',NAME FROM DIM_DEVICE_TYPES WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_DEVICES','NAME',NAME FROM DIM_DEVICES WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_HT_ACTIONS','NAME',NAME FROM DIM_HT_ACTIONS WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_HT_CUSTOMER_TYPES','NAME',NAME FROM DIM_HT_CUSTOMER_TYPES WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_HT_QUEUE_TYPES','NAME',NAME FROM DIM_HT_QUEUE_TYPES WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_HT_SERVICE_TYPES','NAME',NAME FROM DIM_HT_SERVICE_TYPES WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_HT_STEPS','NAME',NAME FROM DIM_HT_STEPS WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_HT_SUPPORT_TYPES','NAME',NAME FROM DIM_HT_SUPPORT_TYPES WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_INTERFACES','NAME',NAME FROM DIM_INTERFACES WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_ISSUE_GROUPS','NAME',NAME FROM DIM_ISSUE_GROUPS WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_ISSUE_NAMES','NAME',NAME FROM DIM_ISSUE_NAMES WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_LOCATIONS','NAME',NAME FROM DIM_LOCATIONS WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_POPS','NAME',NAME FROM DIM_POPS WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_PROCESSING_UNITS','NAME',NAME FROM DIM_PROCESSING_UNITS WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_QUEUES','NAME',NAME FROM DIM_QUEUES WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_REASONS','NAME',NAME FROM DIM_REASONS WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_REASONS','DETAIL',DETAIL FROM DIM_REASONS WHERE DETAIL IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_REGIONS','NAME',NAME FROM DIM_REGIONS WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_STAFFS','NAME',NAME FROM DIM_STAFFS WHERE NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_STAFFS','MAIL',MAIL FROM DIM_STAFFS WHERE MAIL IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_TICKET_CLOSE','CLOSED_SHIFT',CLOSED_SHIFT FROM DIM_TICKET_CLOSE WHERE CLOSED_SHIFT IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_TICKET_CLOSE','CLOSED_WEEK',CLOSED_WEEK FROM DIM_TICKET_CLOSE WHERE CLOSED_WEEK IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'DIM_TICKET_CLOSE','CLOSED_MONTH',CLOSED_MONTH FROM DIM_TICKET_CLOSE WHERE CLOSED_MONTH IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'FACT_TICKET_CREATION','SC_CREATION_METHOD',SC_CREATION_METHOD FROM FACT_TICKET_CREATION WHERE SC_CREATION_METHOD IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'FACT_TICKET_CREATION','SHIFT',"shift" FROM FACT_TICKET_CREATION WHERE "shift" IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'FACT_TICKET_PROCESS','PROCESS_NAME',PROCESS_NAME FROM FACT_TICKET_PROCESS WHERE PROCESS_NAME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'FACT_TICKETS','OVER_TIME',OVER_TIME FROM FACT_TICKETS WHERE OVER_TIME IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'FACT_TICKETS','TICKET_STATUS',TICKET_STATUS FROM FACT_TICKETS WHERE TICKET_STATUS IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'FACT_HT_TICKETS','DEADLINE_STATUS',DEADLINE_STATUS FROM FACT_HT_TICKETS WHERE DEADLINE_STATUS IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'FACT_SC_TICKETS','SC_TYPE',SC_TYPE FROM FACT_SC_TICKETS WHERE SC_TYPE IS NOT NULL;
+  INSERT INTO unique_value_columns SELECT 'HT_TICKET_HISTORY','HT_TICKET_STATUS',HT_TICKET_STATUS FROM HT_TICKET_HISTORY WHERE HT_TICKET_STATUS IS NOT NULL;
+  COMMIT;
+END;
+/
+BEGIN
+  DBMS_SCHEDULER.DROP_JOB('REFRESH_UNIQUE_VALUE_COLUMNS', TRUE);
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+BEGIN
+  DBMS_SCHEDULER.CREATE_JOB (
+    job_name => 'JOB_REFRESH_UNIQUE_VALUE_COLUMNS',
+    job_type => 'STORED_PROCEDURE',
+    job_action => 'REFRESH_UNIQUE_VALUE_COLUMNS',
+    start_date => SYSTIMESTAMP,
+    repeat_interval => 'FREQ=MINUTELY;INTERVAL=5',
+    enabled => TRUE
+  );
+END;
+/
+
+CREATE TABLE plus_value_columns (
+    table_name   VARCHAR2(128 CHAR) NOT NULL,
+    column_name  VARCHAR2(128 CHAR) NOT NULL,
+    PRIMARY KEY (table_name, column_name)
+);
+
+-- Các cột từ FACT_TICKETS
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_TICKETS', 'PRIORITY');
+
+-- Các cột từ FACT_HT_TICKETS
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_HT_TICKETS', 'COMMITMENT_DESC');
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_HT_TICKETS', 'REQUIRED');
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_HT_TICKETS', 'IS_TICKET_OPEN');
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_HT_TICKETS', 'SOS_TICKET_FLAG');
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_HT_TICKETS', 'PRIORITY_HANDLING_DESC');
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_HT_TICKETS', 'IS_ESCALATED');
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_HT_TICKETS', 'SCENARIO_CONFIRMED');
+
+-- Các cột từ FACT_SC_TICKETS
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_SC_TICKETS', 'SC_KHG_STATUS');
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_SC_TICKETS', 'SC_REPORT_STATUS');
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_SC_TICKETS', 'SC_INF_EXPLANATION_STATUS');
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('FACT_SC_TICKETS', 'SC_NATURAL_DISASTER');
+
+-- Cột từ HT_TICKET_HISTORY
+INSERT INTO plus_value_columns (table_name, column_name) VALUES ('HT_TICKET_HISTORY', 'COMMITMENT_DESCRIPTION');
+
+COMMIT;
+
+CREATE TABLE column_embeddings (
+    table_name   VARCHAR2(128 CHAR) NOT NULL,
+    column_name  VARCHAR2(128 CHAR) NOT NULL,
+    emb VECTOR(1024, FLOAT32),
+    PRIMARY KEY (table_name, column_name)
+) TABLESPACE USERS;
+
+CREATE TABLE table_embeddings (
+    table_name VARCHAR2(128 CHAR) PRIMARY KEY,
+    emb VECTOR(1024, FLOAT32)
+) TABLESPACE USERS;
+
+
+--------------------------------------------------------------
+-- *** NEW: MATERIALIZED VIEWS cho Analytics Service ***
+--------------------------------------------------------------
+
+-- MV daily cube: tổng hợp theo ngày, shift, device_type, region, status, priority, issue_name
+-- Dùng cho các API: get_kpi, get_trend, get_pivot_device_by_shift, get_pareto_issue_groups, get_processing_time_distribution, get_current_shift_vs_previous (một phần), get_correlation (cần suspend_time nên chưa có, nhưng có thể dùng trực tiếp fact nếu cần)
+CREATE MATERIALIZED VIEW mv_sc_daily_cube
+BUILD IMMEDIATE
+REFRESH COMPLETE ON DEMAND
+ENABLE QUERY REWRITE
+AS
+SELECT
+    c."date",
+    c."shift",
+    s.device_type_id,
+    s.region_id,
+    t.ticket_status,
+    t.over_time,
+    t.priority,
+    t.issue_name_id,
+    COUNT(*) AS ticket_cnt,
+    SUM(CASE WHEN s.sc_khg_status = 'Có' THEN s.cus_qty ELSE 0 END) AS impacted_cust,
+    AVG(CASE WHEN p.actual_time > 0 THEN p.actual_time END) AS avg_actual_time,
+    COUNT(CASE WHEN p.actual_time > 0 THEN 1 END) AS processed_cnt
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+LEFT JOIN fact_ticket_process p ON t.process_id = p.id
+GROUP BY c."date", c."shift", s.device_type_id, s.region_id,
+         t.ticket_status, t.over_time, t.priority, t.issue_name_id;
+
+-- MV branch daily: dùng cho get_top_branches_ranked
+CREATE MATERIALIZED VIEW mv_branch_daily
+BUILD IMMEDIATE
+REFRESH COMPLETE ON DEMAND
+ENABLE QUERY REWRITE
+AS
+SELECT
+    c."date",
+    b.branch_name,
+    COUNT(*) AS cnt
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_branch tb ON t.id = tb.ticket_id
+JOIN dim_branches b ON tb.branch_id = b.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+GROUP BY c."date", b.branch_name;
+
 -- ============================================================
--- LƯU Ý:
--- 1. Các khóa ngoại từ MySQL có ON UPDATE CASCADE đã bị loại bỏ
---    vì Oracle không hỗ trợ. Nếu nghiệp vụ yêu cầu cập nhật
---    khóa chính, bạn cần viết trigger riêng.
--- 2. Cột kiểu JSON trong MySQL chuyển thành CLOB; bạn có thể
---    thêm ràng buộc CHECK (cột IS JSON) nếu dùng Oracle 12.2+.
--- 3. Chỉ mục trên khóa ngoại được tạo thủ công để tăng hiệu năng.
--- 4. Script này tương thích Oracle 12c trở lên.
+-- BỔ SUNG CHO HT ANALYTICS SERVICE
 -- ============================================================
+
+-- 1. Materialized View tổng hợp theo ngày cho HT
+CREATE MATERIALIZED VIEW mv_ht_daily_cube
+BUILD IMMEDIATE
+REFRESH COMPLETE ON DEMAND
+ENABLE QUERY REWRITE
+AS
+SELECT
+    c."date",
+    c."shift",
+    h.step_id,
+    h.deadline_status,
+    h.service_type_id,
+    h.sos_ticket_flag,
+    h.required,
+    h.is_ticket_open,
+    t.ticket_status,
+    COUNT(*) AS ticket_cnt,
+    SUM(h.rejection_count) AS total_rejections,
+    SUM(h.response_count) AS total_responses,
+    AVG(h.ticket_age_days) AS avg_ticket_age,
+    COUNT(CASE WHEN h.sla_violation_count != 'Không' THEN 1 END) AS sla_violations
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+GROUP BY c."date", c."shift", h.step_id, h.deadline_status,
+         h.service_type_id, h.sos_ticket_flag, h.required,
+         h.is_ticket_open, t.ticket_status;
+
+-- 2. Bitmap index cho các flag trên fact_ht_tickets
+CREATE BITMAP INDEX idx_fht_sos        ON fact_ht_tickets(sos_ticket_flag)        LOCAL;
+CREATE BITMAP INDEX idx_fht_required   ON fact_ht_tickets(required)               LOCAL;
+CREATE BITMAP INDEX idx_fht_open       ON fact_ht_tickets(is_ticket_open)         LOCAL;
+CREATE BITMAP INDEX idx_fht_deadline   ON fact_ht_tickets(deadline_status)        LOCAL;
+CREATE BITMAP INDEX idx_fht_sla        ON fact_ht_tickets(sla_violation_count)    LOCAL;
+
+-- 3. Index cho phân tích thời gian phản hồi
+CREATE INDEX idx_ht_hist_ticket_resp ON ht_ticket_history(ht_ticket_id, response_time_minutes);
+
+
+INSERT ALL
+    INTO keywords (keyword, detail_value) VALUES ('ahkh',             'ảnh hưởng khách hàng')
+    INTO keywords (keyword, detail_value) VALUES ('bao nhiêu khg',    'tổng khách hàng')
+    INTO keywords (keyword, detail_value) VALUES ('chuyển queue scc', 'tạo queue scc')
+    INTO keywords (keyword, detail_value) VALUES ('core ip',          'Hệ thống Core IP')
+    INTO keywords (keyword, detail_value) VALUES ('hcm',              'Sài Gòn, Hồ Chí Minh')
+    INTO keywords (keyword, detail_value) VALUES ('hn',               'Hà Nội')
+    INTO keywords (keyword, detail_value) VALUES ('ht',               'Hỗ trợ')
+    INTO keywords (keyword, detail_value) VALUES ('khác',             'không bằng')
+    INTO keywords (keyword, detail_value) VALUES ('khah',             'tổng khách hàng ảnh hưởng')
+    INTO keywords (keyword, detail_value) VALUES ('khg',              'tổng Khách hàng')
+    INTO keywords (keyword, detail_value) VALUES ('mã ticket',        'ticket code')
+    INTO keywords (keyword, detail_value) VALUES ('nay',              'hôm nay')
+    INTO keywords (keyword, detail_value) VALUES ('nhóm phần tử',     'issue_group')
+    INTO keywords (keyword, detail_value) VALUES ('nn',               'Nguyên nhân')
+    INTO keywords (keyword, detail_value) VALUES ('nnct',             'Nguyên nhân chi tiết')
+    INTO keywords (keyword, detail_value) VALUES ('olt',              'OLT (Optical Line Terminal)')
+    INTO keywords (keyword, detail_value) VALUES ('pop',              'POP (Point of Presence)')
+    INTO keywords (keyword, detail_value) VALUES ('queue scc',        'queue xử lý SCC')
+    INTO keywords (keyword, detail_value) VALUES ('sc',               'Sự cố / ticket Sự cố')
+    INTO keywords (keyword, detail_value) VALUES ('số lượng khg',     'tổng khách hàng')
+SELECT * FROM DUAL;
+
+
+-- Script chèn dữ liệu mẫu cho bảng examples (Oracle)
+-- Mỗi câu hỏi và câu SQL mẫu đã được chuyển từ MySQL sang Oracle, giữ nguyên logic.
+
+INSERT ALL
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT được tạo ngày hôm qua',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = TRUNC(SYSDATE)-1'
+  )
+  INTO examples (question, answer) VALUES (
+    'Ngày 23/11/2025 có bao nhiêu HT tạo queue SCC được xác nhận kịch bản?',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE c."date" = DATE ''2025-11-23''
+  AND h.scenario_confirmed = ''Có''
+  AND q.name = ''SCC'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tuần 48 năm 2025 có bao nhiêu HT tạo queue SCC được xác nhận kịch bản?',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE c."week" = ''W48 - 2025''
+  AND h.scenario_confirmed = ''Có''
+  AND q.name = ''SCC'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tháng 11/2025 có bao nhiêu HT tạo queue SCC được xác nhận kịch bản?',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE c."month" = ''11/2025''
+  AND h.scenario_confirmed = ''Có''
+  AND q.name = ''SCC'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng HT được tạo với dịch vụ broadband queue SCC trong ngày 23/11/2025 là bao nhiêu?',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN dim_ht_service_types srv ON h.service_type_id = srv.id
+WHERE c."date" = DATE ''2025-11-23''
+  AND srv.name = ''Broadband''
+  AND q.name = ''SCC'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng HT được SCC xử lý hoàn tất với dịch vụ broadband trong tuần 48 năm 2025 là bao nhiêu?',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN dim_ht_service_types srv ON h.service_type_id = srv.id
+WHERE cl.closed_week = ''W48 - 2025''
+  AND srv.name = ''Broadband''
+  AND q.name = ''SCC''
+  AND t.ticket_status IN (''Closed'', ''Resolved'')'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT do SCC xử lý đúng hạn trong tháng 11/2025',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+WHERE cl.closed_month = ''11/2025''
+  AND h.deadline_status = ''Đúng hạn''
+  AND q.name = ''SCC'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT tồn tại queue SCC đến hiện tại',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE h.is_ticket_open = ''Có''
+  AND q.name = ''SCC'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tổng số lần SCC phản hồi của các ticket HT tạo trong tháng 11/2025',
+    'SELECT SUM(h.response_count)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE c."month" = ''11/2025''
+  AND q.name = ''SCC'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lần SCC từ chối hỗ trợ của các ticket HT tạo trong tháng 11/2025',
+    'SELECT SUM(h.rejection_count)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE c."month" = ''11/2025''
+  AND q.name = ''SCC'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT cần SCC xử lý tại thời điểm hiện tại',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+WHERE h.required = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tổng số ticket HT SCC xử lý hoàn tất trong tuần 48 năm 2025',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+WHERE cl.closed_week = ''W48 - 2025''
+  AND q.name = ''SCC''
+  AND t.ticket_status IN (''Closed'', ''Resolved'')'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT có thời gian SCC phản hồi lớn hơn cam kết',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+WHERE h.sla_violation_count NOT IN (''Không'', ''0'')'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng và danh sách các ticket HT với mô tả KH chơi game lag còn tồn trên hệ thống',
+    'SELECT COUNT(*), LISTAGG(t.code, ''; '') WITHIN GROUP (ORDER BY t.id) AS danh_sach_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+WHERE h.is_ticket_open = ''Có''
+  AND i.name LIKE ''%KH chơi game lag%'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng và danh sách các ticket HT với mô tả KH Có tín hiệu nhưng không lấy được IP phát sinh trong ngày hôm nay',
+    'SELECT COUNT(*), LISTAGG(t.code, ''; '') WITHIN GROUP (ORDER BY t.id) AS danh_sach_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE i.name LIKE ''%KH Có tín hiệu nhưng không lấy được IP%''
+  AND c."date" = TRUNC(SYSDATE)'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng và danh sách các ticket HT với mô tả KH Có tín hiệu nhưng không lấy được IP phát sinh trong ngày 23/11/2025',
+    'SELECT COUNT(*), LISTAGG(t.code, ''; '') WITHIN GROUP (ORDER BY t.id) AS danh_sach_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE i.name LIKE ''%KH Có tín hiệu nhưng không lấy được IP%''
+  AND c."date" = DATE ''2025-11-23'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự TrieuHQ5 đang xử lý bao nhiêu ticket HT được tạo vào ca 2 ngày 23/11',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+WHERE c."shift" = ''Ca 2''
+  AND c."date" = DATE ''2025-11-23''
+  AND LOWER(s.mail) LIKE ''%trieuhq5%''
+  AND t.ticket_status = ''Inprogress'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự TrieuHQ5 xử lý bao nhiêu ticket HT được tạo vào ca 2 ngày 23/11',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+WHERE c."shift" = ''Ca 2''
+  AND c."date" = DATE ''2025-11-23''
+  AND LOWER(s.mail) LIKE ''%trieuhq5%'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự TrieuHQ5 xử lý bao nhiêu ticket HT quá hạn trong tuần 48',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+WHERE LOWER(s.mail) LIKE ''%trieuhq5%''
+  AND h.deadline_status = ''Quá hạn''
+  AND cl.closed_week = ''W48 - 2025'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự TrieuHQ5 xử lý bao nhiêu ticket HT đúng hạn trong tuần 48',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+WHERE LOWER(s.mail) LIKE ''%trieuhq5%''
+  AND h.deadline_status = ''Đúng hạn''
+  AND cl.closed_week = ''W48 - 2025'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT tạo bị SCC từ chối > 2 lần trong ngày hôm nay',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = TRUNC(SYSDATE)
+  AND h.rejection_count > 2'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT tạo bị SCC từ chối > 2 lần trong tuần 48',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."week" = ''W48 - 2025''
+  AND h.rejection_count > 2'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT SCC chưa nhận xử lý tại thời điểm hiện tại',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE q.name = ''SCC''
+  AND t.ticket_status = ''New'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT SCC đã xử lý hoàn tất tại thời điểm hiện tại',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE q.name = ''SCC''
+  AND t.ticket_status = ''Closed'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT tồn quá 1 ngày ở queue SCC là gì, liệt kê ra',
+    'SELECT COUNT(*), LISTAGG(i.name, ''; '') WITHIN GROUP (ORDER BY t.id) AS danh_sach_issue
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+WHERE h.is_ticket_open = ''Có''
+  AND q.name = ''SCC''
+  AND h.ticket_age_days > 1'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT ESCALATE chưa nhận xử lý',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+WHERE h.is_escalated = ''Có''
+  AND t.ticket_status = ''New'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự TrieuHQ5 có bao nhiêu lần có thời gian phản hồi > 15 phút với các ticket HT cam kết phản hồi trong tháng 11/2025',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN ht_ticket_history hist ON h.ticket_id = hist.ht_ticket_id
+JOIN dim_staffs s ON hist.staff_id = s.id
+WHERE c."month" = ''11/2025''
+  AND LOWER(s.mail) LIKE ''%trieuhq5%''
+  AND hist.response_time_minutes > 15
+  AND hist.commitment_description = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự TrieuHQ5 có bao nhiêu lần từ chối xử lý có thời gian phản hồi > 15 phút với các ticket HT cam kết phản hồi trong tháng 11/2025',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN ht_ticket_history hist ON h.ticket_id = hist.ht_ticket_id
+JOIN dim_staffs s ON hist.staff_id = s.id
+JOIN dim_ht_actions a ON hist.action_id = a.id
+WHERE c."month" = ''11/2025''
+  AND LOWER(s.mail) LIKE ''%trieuhq5%''
+  AND a.name = ''Từ chối hỗ trợ''
+  AND hist.response_time_minutes > 15
+  AND hist.commitment_description = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT do TIN, PNC tạo cho SCC trong từng ngày của 7 ngày gần nhất, có xác nhận kịch bản',
+    'SELECT c."date" AS ngay_tao, COUNT(*) AS so_luong_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q_process ON p.queue_process_id = q_process.id
+JOIN dim_queues q_create ON p.queue_create_id = q_create.id
+WHERE c."date" >= TRUNC(SYSDATE)-6
+  AND h.scenario_confirmed = ''Có''
+  AND q_process.name = ''SCC''
+  AND (q_create.name LIKE ''%TIN%'' OR q_create.name LIKE ''%PNC%'')
+GROUP BY c."date"
+ORDER BY c."date" DESC'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT do TIN, PNC tạo cho SCC trong từng ngày từ 23/11 đến 29/11, có xác nhận kịch bản',
+    'SELECT c."date" AS ngay_tao, COUNT(*) AS so_luong_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q_process ON p.queue_process_id = q_process.id
+JOIN dim_queues q_create ON p.queue_create_id = q_create.id
+WHERE c."date" BETWEEN DATE ''2025-11-23'' AND DATE ''2025-11-29''
+  AND h.scenario_confirmed = ''Có''
+  AND q_process.name = ''SCC''
+  AND (q_create.name LIKE ''%TIN%'' OR q_create.name LIKE ''%PNC%'')
+GROUP BY c."date"
+ORDER BY c."date"'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT do TIN, PNC tạo cho SCC trong từng ngày của 7 ngày gần nhất, có xác nhận kịch bản theo mô tả hỗ trợ',
+    'SELECT c."date" AS ngay_tao,
+       i.name AS mo_ta_ho_tro,
+       COUNT(*) AS so_luong_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q_process ON p.queue_process_id = q_process.id
+JOIN dim_queues q_create ON p.queue_create_id = q_create.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+WHERE c."date" >= TRUNC(SYSDATE)-6
+  AND h.scenario_confirmed = ''Có''
+  AND q_process.name = ''SCC''
+  AND (q_create.name LIKE ''%TIN%'' OR q_create.name LIKE ''%PNC%'')
+GROUP BY c."date", i.name
+ORDER BY c."date" DESC, so_luong_ticket DESC'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT do TIN, PNC tạo được SCC xử lý hoàn tất trong từng ngày của 7 ngày gần nhất, theo nguyên nhân lỗi',
+    'SELECT cl.closed_day AS ngay_dong,
+       r.name AS nguyen_nhan_loi,
+       COUNT(*) AS so_luong_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q_process ON p.queue_process_id = q_process.id
+JOIN dim_queues q_create ON p.queue_create_id = q_create.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN dim_reasons r ON t.reason_id = r.id
+WHERE cl.closed_day >= TRUNC(SYSDATE)-6
+  AND t.ticket_status IN (''Closed'', ''Resolved'')
+  AND q_process.name = ''SCC''
+  AND (q_create.name LIKE ''%TIN%'' OR q_create.name LIKE ''%PNC%'')
+GROUP BY cl.closed_day, r.name
+ORDER BY cl.closed_day DESC, so_luong_ticket DESC'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket HT phát sinh ngày 23/11, có log xác nhận kịch bản queue SCC theo loại dịch vụ',
+    'SELECT srv.name AS loai_dich_vu, COUNT(*) AS so_luong_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q_process ON p.queue_process_id = q_process.id
+JOIN dim_ht_service_types srv ON h.service_type_id = srv.id
+WHERE c."date" = DATE ''2025-11-23''
+  AND h.scenario_confirmed = ''Có''
+  AND q_process.name = ''SCC''
+GROUP BY srv.name
+ORDER BY so_luong_ticket DESC'
+  )
+  INTO examples (question, answer) VALUES (
+    'Thời gian xử lý trung bình của loại dịch vụ Broadband queue SCC trong tháng 4 tuần gần nhất',
+    'SELECT AVG(p.actual_time) AS avg_processing_time
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN dim_ht_service_types srv ON h.service_type_id = srv.id
+WHERE cl.closed_day >= TRUNC(SYSDATE)-28
+  AND t.ticket_status IN (''Closed'', ''Resolved'')
+  AND srv.name = ''Broadband''
+  AND q.name = ''SCC''
+  AND p.actual_time > 0'
+  )
+  INTO examples (question, answer) VALUES (
+    'Thời gian xử lý trung bình của loại dịch vụ Broadband queue SCC trong tuần 48, 49',
+    'SELECT AVG(p.actual_time) AS avg_processing_time
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN dim_ht_service_types srv ON h.service_type_id = srv.id
+WHERE cl.closed_week IN (''W48 - 2025'', ''W49 - 2025'')
+  AND t.ticket_status IN (''Closed'', ''Resolved'')
+  AND srv.name = ''Broadband''
+  AND q.name = ''SCC''
+  AND p.actual_time > 0'
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự TrieuHQ5 đã close bao nhiêu ticket HT trong ca 2 ngày 23/11/2025 và trong tuần 48/2025',
+    'SELECT ''Ngày 23/11/2025 Ca 2'' AS thoi_gian, COUNT(*) AS so_luong_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+WHERE cl.closed_shift = ''Ca 2''
+  AND cl.closed_day = DATE ''2025-11-23''
+  AND LOWER(s.mail) LIKE ''%trieuhq5%''
+  AND t.ticket_status = ''Closed''
+UNION ALL
+SELECT ''Tuần 48/2025'' AS thoi_gian, COUNT(*) AS so_luong_ticket
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+WHERE cl.closed_week = ''W48 - 2025''
+  AND LOWER(s.mail) LIKE ''%trieuhq5%''
+  AND t.ticket_status = ''Closed'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Mô tả ticket HT nào được tạo và SCC nhận xử lý quá hạn nhiều nhất trong tuần 48 và tháng 11/2025',
+    '(
+  SELECT ''Tháng 11/2025'' AS thoi_gian, i.name AS mo_ta_ticket, COUNT(*) AS so_ticket_qua_han
+  FROM fact_ht_tickets h
+  JOIN fact_tickets t ON h.ticket_id = t.id
+  JOIN fact_ticket_creation c ON t.creation_id = c.id
+  JOIN dim_issue_names i ON t.issue_name_id = i.id
+  WHERE c."month" = ''11/2025''
+    AND h.sla_violation_count NOT IN (''Không'', ''0'')
+  GROUP BY i.name
+  ORDER BY so_ticket_qua_han DESC
+  FETCH FIRST 1 ROW ONLY
+)
+UNION ALL
+(
+  SELECT ''Tuần 48/2025'' AS thoi_gian, i.name AS mo_ta_ticket, COUNT(*) AS so_ticket_qua_han
+  FROM fact_ht_tickets h
+  JOIN fact_tickets t ON h.ticket_id = t.id
+  JOIN fact_ticket_creation c ON t.creation_id = c.id
+  JOIN dim_issue_names i ON t.issue_name_id = i.id
+  WHERE c."week" = ''W48 - 2025''
+    AND h.sla_violation_count NOT IN (''Không'', ''0'')
+  GROUP BY i.name
+  ORDER BY so_ticket_qua_han DESC
+  FETCH FIRST 1 ROW ONLY
+)'
+  )
+  INTO examples (question, answer) VALUES (
+    'Mô tả ticket HT nào được tạo Escalate nhiều nhất trong tuần 48 năm 2025, trong tháng 11/2024',
+    '(
+  SELECT ''Tuần 48/2025'' AS thoi_gian, i.name AS mo_ta_ticket, COUNT(*) AS so_ticket_escalate
+  FROM fact_ht_tickets h
+  JOIN fact_tickets t ON h.ticket_id = t.id
+  JOIN fact_ticket_creation c ON t.creation_id = c.id
+  JOIN dim_issue_names i ON t.issue_name_id = i.id
+  WHERE c."week" = ''W48 - 2025''
+    AND h.is_escalated = ''Có''
+  GROUP BY i.name
+  ORDER BY so_ticket_escalate DESC
+  FETCH FIRST 1 ROW ONLY
+)
+UNION ALL
+(
+  SELECT ''Tháng 11/2024'' AS thoi_gian, i.name AS mo_ta_ticket, COUNT(*) AS so_ticket_escalate
+  FROM fact_ht_tickets h
+  JOIN fact_tickets t ON h.ticket_id = t.id
+  JOIN fact_ticket_creation c ON t.creation_id = c.id
+  JOIN dim_issue_names i ON t.issue_name_id = i.id
+  WHERE c."month" = ''11/2024''
+    AND h.is_escalated = ''Có''
+  GROUP BY i.name
+  ORDER BY so_ticket_escalate DESC
+  FETCH FIRST 1 ROW ONLY
+)'
+  )
+  INTO examples (question, answer) VALUES (
+    'So sánh số lượng ticket HT đã xử lý toán tất, đang pending, xử lý quá hạn của nhân sự TrieuHQ5 và ThuyVT69',
+    'SELECT 
+    s.mail_prefix,
+    s.ticket_status,
+    COUNT(*)
+FROM (
+    SELECT 
+        CASE 
+            WHEN LOWER(s.mail) LIKE ''%trieuhq5%'' THEN ''TrieuHQ5''
+            WHEN LOWER(s.mail) LIKE ''%thuyvt69%'' THEN ''ThuyVT69''
+        END AS mail_prefix,
+        CASE 
+            WHEN t.ticket_status IN (''Closed'', ''Resolved'') THEN ''Đã xử lý hoàn tất''
+            WHEN t.ticket_status = ''Pending'' THEN ''Đang pending''
+        END AS ticket_status
+    FROM fact_ht_tickets h
+    JOIN fact_tickets t ON h.ticket_id = t.id
+    JOIN fact_ticket_process p ON t.process_id = p.id
+    JOIN dim_staffs s ON p.process_staff_id = s.id
+    WHERE (LOWER(s.mail) LIKE ''%trieuhq5%'' OR LOWER(s.mail) LIKE ''%thuyvt69%'')
+      AND t.ticket_status IN (''Closed'', ''Resolved'', ''Pending'')
+    UNION ALL
+    SELECT 
+        CASE 
+            WHEN LOWER(s.mail) LIKE ''%trieuhq5%'' THEN ''TrieuHQ5''
+            WHEN LOWER(s.mail) LIKE ''%thuyvt69%'' THEN ''ThuyVT69''
+        END AS mail_prefix,
+        ''Quá hạn'' AS ticket_status
+    FROM fact_ht_tickets h
+    JOIN fact_tickets t ON h.ticket_id = t.id
+    JOIN fact_ticket_process p ON t.process_id = p.id
+    JOIN dim_staffs s ON p.process_staff_id = s.id
+    WHERE (LOWER(s.mail) LIKE ''%trieuhq5%'' OR LOWER(s.mail) LIKE ''%thuyvt69%'')
+      AND h.deadline_status = ''Quá hạn''
+) s
+GROUP BY s.mail_prefix, s.ticket_status
+ORDER BY 1, 2'
+  )
+  INTO examples (question, answer) VALUES (
+    'TOP 5 nguyên nhân có số ticket HT được closed nhiều nhất của dịch vụ Broadband trong tháng 11',
+    'SELECT r.name AS reason_name, COUNT(*) AS ticket_count
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN dim_reasons r ON t.reason_id = r.id
+JOIN dim_ht_service_types srv ON h.service_type_id = srv.id
+WHERE cl.closed_month = ''11/2025''
+  AND srv.name = ''Broadband''
+  AND t.ticket_status = ''Closed''
+GROUP BY r.name
+ORDER BY ticket_count DESC
+FETCH FIRST 5 ROWS ONLY'
+  )
+  INTO examples (question, answer) VALUES (
+    'Ngày 23/10/2025 có bao nhiêu SC ảnh hưởng KHG được tạo?',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = DATE ''2025-10-23''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tuần 44 năm 2025 có bao nhiêu SC ảnh hưởng KHG được tạo?',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tháng 10/2025 có bao nhiêu SC ảnh hưởng KHG được tạo?',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."month" = ''10/2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng SC ảnh hưởng KHG của Access trong ngày 23/10/2025 là bao nhiêu?',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN dim_issue_groups g ON i.issue_group_id = g.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE g.name = ''Hệ thống Access''
+  AND c."date" = DATE ''2025-10-23''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng SC ảnh hưởng KHG theo rule báo cáo của tuần 44 năm 2025 là bao nhiêu?',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."week" = ''W44 - 2025''
+  AND s.sc_report_status = ''Có''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng SC ảnh hưởng KHG do đơn vị hạ tầng xử lý trong tuần 44 năm 2025',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_processing_units u ON p.processing_unit_id = u.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE s.sc_khg_status = ''Có''
+  AND u.name = ''Hạ tầng''
+  AND c."week" = ''W44 - 2025'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tra cứu số lượng ticket SC chưa được nhận xử lý của ngày 23/10/2025',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = DATE ''2025-10-23''
+  AND t.ticket_status = ''New'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tra cứu số lượng ticket SC ảnh hưởng KHG tạo ngày 23/10/2025 chưa được nhận xử lý thời điểm hiện tại',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = DATE ''2025-10-23''
+  AND t.ticket_status = ''New''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng SC POP Down, OLT down theo rule báo cáo trong tuần 44 năm 2025',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE i.name IN (''POP Down'', ''OLT down'')
+  AND s.sc_report_status = ''Có''
+  AND c."week" = ''W44 - 2025'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng SC của miền Bắc trong tuần 44 theo rule báo cáo',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN dim_regions r ON s.region_id = r.id
+WHERE c."week" = ''W44 - 2025''
+  AND r.name = ''MB''
+  AND s.sc_report_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng SC nguyên nhân chủ quan trong tuần 44',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."week" = ''W44 - 2025''
+  AND s.sc_type = ''Chủ quan'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số SC ảnh hưởng KHG của Hà Nội trong tuần 44',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_location tl ON t.id = tl.ticket_id
+JOIN dim_locations l ON tl.location_id = l.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE l.name LIKE ''%Hà Nội%''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số SC ảnh hưởng KHG của chi nhánh Hà Nội 10 trong tuần 44 theo rule báo cáo',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_branch tb ON t.id = tb.ticket_id
+JOIN dim_branches b ON tb.branch_id = b.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE b.branch_name = ''Hà Nội 10''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có''
+  AND s.sc_report_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'HNIP327 có phát sinh SC ảnh hưởng KHG trong tuần 44 không',
+    'SELECT t.code
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_pop tp ON t.id = tp.ticket_id
+JOIN dim_pops p ON tp.pop_id = p.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE p.name = ''HNIP327''
+  AND s.sc_khg_status = ''Có''
+  AND c."week" = ''W44 - 2025'''
+  )
+  INTO examples (question, answer) VALUES (
+    'HNIP327 có bao nhiêu SC ảnh hưởng KHG phát sinh trong tuần 44 theo rule báo cáo',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_pop tp ON t.id = tp.ticket_id
+JOIN dim_pops p ON tp.pop_id = p.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE p.name = ''HNIP327''
+  AND s.sc_khg_status = ''Có''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_report_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số ticket SC auto có thời gian tạo < 10 phút trong tuần 44',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c.sc_creation_method = ''SC tạo auto''
+  AND c.sc_creation_time < 10
+  AND c."week" = ''W44 - 2025'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tỷ lệ ticket SC Core IP có thời gian tạo < 10 phút trong tuần 44',
+    'SELECT 
+    COUNT(CASE WHEN c.sc_creation_time < 10 THEN 1 END) * 100.0 / COUNT(*) AS ratio
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN dim_issue_groups g ON i.issue_group_id = g.id
+WHERE c."week" = ''W44 - 2025''
+  AND g.name = ''Hệ thống Core IP'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số ticket SC ảnh hưởng KHG theo rule báo cáo có thời gian xử lý SC quá hạn trong tuần 44',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+WHERE s.sc_khg_status = ''Có''
+  AND t.over_time LIKE ''%quá hạn%''
+  AND s.sc_report_status = ''Có''
+  AND c."week" = ''W44 - 2025''
+  AND p.actual_time > 0'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số ticket SC ảnh hưởng KHG có thời gian dự kiến hoàn thành quá hạn hiện tại',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_time tm ON t.time_id = tm.id
+WHERE s.sc_khg_status = ''Có''
+  AND tm.expect_end_date < SYSDATE'
+  )
+  INTO examples (question, answer) VALUES (
+    'Ngày 29/10/2025, có bao nhiêu SC ảnh hưởng KHG được tạo?',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = DATE ''2025-10-29''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Ngày 23/10/2025 có bao nhiêu KHG ảnh hưởng được tạo?',
+    'SELECT SUM(s.cus_qty) AS total_khg_affected
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = DATE ''2025-10-23''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tuần 44 năm 2025 có bao nhiêu KHG ảnh hưởng được tạo?',
+    'SELECT SUM(s.cus_qty) AS total_khg_affected
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Tháng 10/2025 có bao nhiêu KHG ảnh hưởng được tạo?',
+    'SELECT SUM(s.cus_qty) AS total_khg_affected
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."month" = ''10/2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng KHG ảnh hưởng của Access trong ngày 23/10/2025 là bao nhiêu?',
+    'SELECT SUM(s.cus_qty) AS total_cus_qty
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN dim_issue_groups g ON i.issue_group_id = g.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE g.name = ''Hệ thống Access''
+  AND c."date" = DATE ''2025-10-23''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng KHG ảnh hưởng theo rule báo cáo của tuần 44 năm 2025 là bao nhiêu?',
+    'SELECT SUM(s.cus_qty) AS total_cus_qty
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."week" = ''W44 - 2025''
+  AND s.sc_report_status = ''Có''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng KHG ảnh hưởng do đơn vị hạ tầng xử lý trong tuần 44 năm 2025',
+    'SELECT SUM(s.cus_qty) AS total_cus_qty
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_processing_units u ON p.processing_unit_id = u.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE u.name = ''Hạ tầng''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng KHG ảnh hưởng bởi các SC POP Down, OLT down theo rule báo cáo trong tuần 44 năm 2025',
+    'SELECT SUM(s.cus_qty) AS total_khg_affected
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE i.name IN (''POP Down'', ''OLT down'')
+  AND s.sc_report_status = ''Có''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng KHG ảnh hưởng của MB trong tuần 44 theo rule báo cáo',
+    'SELECT SUM(s.cus_qty) AS total_cus_qty
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN dim_regions r ON s.region_id = r.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE r.name = ''MB''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_report_status = ''Có''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng KHG ảnh hưởng bởi nguyên nhân chủ quan trong tuần 44',
+    'SELECT SUM(s.cus_qty) AS total_khg_affected
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE s.sc_type = ''Chủ quan''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số KHG ảnh hưởng của Hà Nội trong tuần 44',
+    'SELECT SUM(s.cus_qty) AS total_khg
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_branch tb ON t.id = tb.ticket_id
+JOIN dim_branches b ON tb.branch_id = b.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE b.branch_name LIKE ''%Hà Nội%''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số KHG ảnh hưởng của Hà Nội 10 trong tuần 44 theo rule báo cáo',
+    'SELECT SUM(s.cus_qty) AS total_khg_affected
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_branch tb ON t.id = tb.ticket_id
+JOIN dim_branches b ON tb.branch_id = b.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE b.branch_name = ''Hà Nội 10''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_report_status = ''Có''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'HNIP327 có phát sinh KHG ảnh hưởng trong tuần 44 không',
+    'SELECT t.code, s.cus_qty
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_pop tp ON t.id = tp.ticket_id
+JOIN dim_pops p ON tp.pop_id = p.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE p.name = ''HNIP327''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'HNIP327 có bao nhiêu KHG ảnh hưởng phát sinh trong tuần 44 theo rule báo cáo',
+    'SELECT SUM(s.cus_qty) AS total_khg
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_pop tp ON t.id = tp.ticket_id
+JOIN dim_pops p ON tp.pop_id = p.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE p.name = ''HNIP327''
+  AND c."week" = ''W44 - 2025''
+  AND s.sc_khg_status = ''Có''
+  AND s.sc_report_status = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Thời gian xử lý trung bình của các ticket SC ảnh hưởng KHG theo rule báo cáo tuần 44',
+    'SELECT AVG(p.actual_time) AS avg_processing_time
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE s.sc_khg_status = ''Có''
+  AND s.sc_report_status = ''Có''
+  AND c."week" = ''W44 - 2025''
+  AND p.actual_time > 0'
+  )
+  INTO examples (question, answer) VALUES (
+    'Thời gian xử lý trung bình của các ticket SC ảnh hưởng KHG do đơn vị hạ tầng xử lý theo rule báo cáo tuần 44',
+    'SELECT AVG(p.actual_time) AS avg_processing_time
+FROM fact_ticket_process p
+JOIN dim_processing_units u ON p.processing_unit_id = u.id
+JOIN fact_tickets t ON p.id = t.process_id
+JOIN fact_sc_tickets s ON t.id = s.ticket_id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE u.name = ''Hạ tầng''
+  AND s.sc_khg_status = ''Có''
+  AND s.sc_report_status = ''Có''
+  AND c."week" = ''W44 - 2025''
+  AND p.actual_time > 0'
+  )
+  INTO examples (question, answer) VALUES (
+    'Tỷ lệ xử lý SC đúng hạn của đơn vị NOC-TKVH tuần 44',
+    'SELECT 
+    u.name AS processing_unit_name,
+    SUM(CASE WHEN t.over_time IN (''Đúng hạn'', ''RESOLVED - Đúng hạn'') THEN 1 ELSE 0 END) * 1.0 / COUNT(*) AS ratio_on_time
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_processing_units u ON p.processing_unit_id = u.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE u.name = ''NOC-TKVH''
+  AND c."week" = ''W44 - 2025''
+  AND p.actual_time > 0
+GROUP BY u.name'
+  )
+  INTO examples (question, answer) VALUES (
+    'Thời gian trung bình tạo ticket SC auto trong tuần 44',
+    'SELECT AVG(c.sc_creation_time) AS avg_creation_time
+FROM fact_ticket_creation c
+WHERE c."week" = ''W44 - 2025''
+  AND c.sc_creation_method = ''SC tạo auto'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số ticket SC tạo hôm nay',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = TRUNC(SYSDATE)'
+  )
+  INTO examples (question, answer) VALUES (
+    'số lượng ticket HT hôm nay là bao nhiêu?',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = TRUNC(SYSDATE)'
+  )
+  INTO examples (question, answer) VALUES (
+    'Tổng số ticket HT tháng 1/2026?',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."month" = ''01/2026'''
+  )
+  INTO examples (question, answer) VALUES (
+    'số lượng ticket SC ngày hôm qua tại Hà Nội và Hồ Chí Minh?',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN ticket_branch tb ON t.id = tb.ticket_id
+JOIN dim_branches b ON tb.branch_id = b.id
+WHERE c."date" = TRUNC(SYSDATE)-1
+  AND (b.branch_name LIKE ''%Hà Nội%'' OR b.branch_name LIKE ''%Hồ Chí Minh%'' OR b.branch_name LIKE ''%Sài Gòn%'')'
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket SC chia theo nhóm phần tử tại Hà Nội',
+    'SELECT g.name AS nhom_phan_tu, COUNT(*) AS so_luong_ticket
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_branch tb ON t.id = tb.ticket_id
+JOIN dim_branches b ON tb.branch_id = b.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN dim_issue_groups g ON i.issue_group_id = g.id
+WHERE b.branch_name LIKE ''%Hà Nội%''
+GROUP BY g.name'
+  )
+  INTO examples (question, answer) VALUES (
+    'Tháng 1/2026 có bao nhiêu HT tạo queue SCC được xác nhận kịch bản?',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE c."month" = ''01/2026''
+  AND h.scenario_confirmed = ''Có''
+  AND q.name = ''SCC'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng KHG ảnh hưởng của hệ thống Access trong ngày 17/1/2026 với trạng thái SC khác reject',
+    'SELECT SUM(s.cus_qty) AS tong_khach_hang_anh_huong
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN dim_issue_groups g ON i.issue_group_id = g.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = DATE ''2026-01-17''
+  AND s.sc_khg_status = ''Có''
+  AND g.name = ''Hệ thống Access''
+  AND t.ticket_status <> ''Rejected'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số SC ảnh hưởng KHG của khu vực 01. Hà Nội trong ngày 17/1/2026, trạng thái khác Rejected?',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN ticket_location tl ON t.id = tl.ticket_id
+JOIN dim_locations l ON tl.location_id = l.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+WHERE c."date" = DATE ''2026-01-17''
+  AND s.sc_khg_status = ''Có''
+  AND l.name = ''01. Hà Nội''
+  AND t.ticket_status <> ''Rejected'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Danh sách mã ticket, mô tả HT mà SCC xử lý hoàn tất với dịch vụ broadband trong ngày 17/1/2026',
+    'SELECT t.code AS ticket_code, i.name AS mo_ta_ho_tro
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+JOIN dim_ht_service_types srv ON h.service_type_id = srv.id
+WHERE q.name = ''SCC''
+  AND t.ticket_status IN (''Resolved'', ''Closed'')
+  AND cl.closed_day = DATE ''2026-01-17''
+  AND srv.name = ''Broadband'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Hôm qua có bao nhiêu ticket HT được tạo cho SCC',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+WHERE q.name = ''SCC''
+  AND c."date" = TRUNC(SYSDATE)-1'
+  )
+  INTO examples (question, answer) VALUES (
+    'So sánh số lượng ticket HT được tạo ngày 17/1/2026 mà TrieuHQ5 và ThuyVT69 đang xử lý, đã xử lý hoàn tất',
+    'SELECT 
+    s.mail,
+    t.ticket_status,
+    COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+WHERE (LOWER(s.mail) LIKE ''%trieuhq5%'' OR LOWER(s.mail) LIKE ''%thuyvt69%'')
+  AND c."date" = DATE ''2026-01-17''
+  AND t.ticket_status IN (''Inprogress'', ''Closed'', ''Resolved'')
+GROUP BY s.mail, t.ticket_status'
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự thuyvt69 đã close bao nhiêu ticket HT được SCC xử lý trong ngày 17/1/2026',
+    'SELECT COUNT(*)
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN dim_ticket_close cl ON t.closed_id = cl.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+WHERE LOWER(s.mail) = ''thuyvt69@gmail.com''
+  AND q.name = ''SCC''
+  AND t.ticket_status = ''Closed''
+  AND cl.closed_day = DATE ''2026-01-17'''
+  )
+  INTO examples (question, answer) VALUES (
+    'số lượng SC có thời gian tạo lớn hơn 10p so với thời gian phát sinh sự cố trong tháng 1/2026',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN fact_ticket_time tm ON t.time_id = tm.id
+WHERE c.created_datetime > tm.issue_date + NUMTODSINTERVAL(10, ''MINUTE'')
+  AND c."month" = ''01/2026'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Danh sách ticket HT theo mã ticket, mô tả hỗ trợ của các ticket hiện tại đang có trạng thái NEW, queue SCC, có log xác nhận kịch bản',
+    'SELECT t.code AS ticket_code, hist.description AS mo_ta_ho_tro
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN ht_ticket_history hist ON h.ticket_id = hist.ht_ticket_id AND hist.action_id = 1
+WHERE t.ticket_status = ''New''
+  AND q.name = ''SCC''
+  AND h.scenario_confirmed = ''Có'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Ngày hôm nay nhân sự ChienBD2 đã closed bao nhiêu ticket SC?',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+JOIN fact_ticket_time tm ON t.time_id = tm.id
+WHERE LOWER(s.mail) LIKE ''%chienbd2%''
+  AND TRUNC(tm.closed_date) = TRUNC(SYSDATE)'
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự VanND8 đã đóng bao nhiêu ticket SC vào ngày 06/06/2026 và liệt kê những ticket đã đóng',
+    'SELECT COUNT(*), LISTAGG(t.code, ''; '') WITHIN GROUP (ORDER BY t.id) AS danh_sach_ticket
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+JOIN fact_ticket_time tm ON t.time_id = tm.id
+WHERE LOWER(s.mail) LIKE ''%vannd8%''
+  AND TRUNC(tm.closed_date) = DATE ''2026-02-06'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Nhân sự ThanhNNT4 đã đóng được bao nhiêu ticket mã SC vào ngày 09/02/2026 và liệt kê giúp tôi danh sách ticket đã đóng',
+    'SELECT COUNT(*), LISTAGG(t.code, ''; '') WITHIN GROUP (ORDER BY t.id) AS danh_sach_ticket
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+JOIN fact_ticket_time tm ON t.time_id = tm.id
+WHERE LOWER(s.mail) LIKE ''%thanhnnt4%''
+  AND TRUNC(tm.closed_date) = DATE ''2026-02-09'''
+  )
+  INTO examples (question, answer) VALUES (
+    'Số lượng ticket SC được nhân sự TuanHA71 đã thao tác closed trong hôm nay',
+    'SELECT COUNT(*)
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+JOIN fact_ticket_time tm ON t.time_id = tm.id
+WHERE LOWER(s.mail) LIKE ''%tuanha71%''
+  AND t.ticket_status = ''Closed''
+  AND TRUNC(tm.closed_date) = TRUNC(SYSDATE)'
+  )
+  INTO examples (question, answer) VALUES (
+    'top 5 mô tả ticket HT queue SCC phát sinh nhiều nhất hôm nay',
+    'SELECT i.name AS mo_ta_ticket, COUNT(*) AS so_luong
+FROM fact_ht_tickets h
+JOIN fact_tickets t ON h.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_queues q ON p.queue_process_id = q.id
+JOIN fact_ticket_creation c ON t.creation_id = c.id
+JOIN dim_issue_names i ON t.issue_name_id = i.id
+WHERE c."date" = TRUNC(SYSDATE)
+  AND q.name = ''SCC''
+GROUP BY i.name
+ORDER BY so_luong DESC
+FETCH FIRST 5 ROWS ONLY'
+  )
+  INTO examples (question, answer) VALUES (
+    'Tổng số SC nhân sự TrungND88 đã đóng từ 8h ngày 06/04 tới hiện tại và liệt kê giúp tôi danh sách SC đã đóng',
+    'SELECT COUNT(*), LISTAGG(t.code, ''; '') WITHIN GROUP (ORDER BY t.id) AS danh_sach_ticket
+FROM fact_sc_tickets s
+JOIN fact_tickets t ON s.ticket_id = t.id
+JOIN fact_ticket_process p ON t.process_id = p.id
+JOIN dim_staffs s ON p.process_staff_id = s.id
+JOIN fact_ticket_time tm ON t.time_id = tm.id
+WHERE LOWER(s.mail) LIKE ''%trungnd88%''
+  AND t.ticket_status = ''Closed''
+  AND tm.closed_date >= TO_DATE(''2026-04-06 08:00:00'', ''YYYY-MM-DD HH24:MI:SS'')
+  AND tm.closed_date <= SYSDATE'
+  )
+SELECT * FROM DUAL;

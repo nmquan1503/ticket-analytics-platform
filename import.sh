@@ -1,1 +1,2 @@
 docker exec -it backend python -m app.init --num_tickets 500 --user system --password YourStrongPassword123 --dsn db:1521/freepdb1
+# docker exec -it backend python -m app.services.chat.workflow.retrieve_tables_columns

@@ -47,8 +47,17 @@ class OracleClient:
 
             columns = [col[0].lower() for col in cursor.description]
             rows = cursor.fetchall()
+            result = []
 
-            return [dict(zip(columns, row)) for row in rows]
+            for row in rows:
+                clean_row = []
+                for val in row:
+                    if hasattr(val, "read"):
+                        val = val.read()
+                    clean_row.append(val)
+                result.append(dict(zip(columns, clean_row)))
+
+            return result
 
         finally:
             cursor.close()
@@ -107,3 +116,5 @@ class OracleClient:
         else:
             self.commit()
         self.close()
+
+db_client = OracleClient()

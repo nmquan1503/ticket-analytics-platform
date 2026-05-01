@@ -4,3 +4,5 @@ oracledb
 python-dotenv
 pydantic
 pydantic_settings
+langchain_openai
+langgraph
