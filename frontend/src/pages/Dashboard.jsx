@@ -1,32 +1,24 @@
 import React, { useState, useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area
-} from 'recharts';
-import {
   Calendar, MapPin, Briefcase, Filter, ChevronDown,
   User, Activity, AlertTriangle, LayoutDashboard, Target, GitBranch
 } from 'lucide-react';
 
 // Components
-import KPICard from '../components/KPICard';
-import ChartCard from '../components/ChartCard';
 import MultiSelect from '../components/MultiSelect';
 import AICopilot from '../components/AICopilot';
-import OverviewTab from '../components/tabs/OverviewTab';
-import QoSTab from '../components/tabs/QoSTab';
-import BottleneckTab from '../components/tabs/BottleneckTab';
+import SCOverviewTab from '../components/tabs/SCOverviewTab';
+import HTOverviewTab from '../components/tabs/HTOverviewTab';
 
-// Data
-import { mockSCData, mockHTData, STATUSES, LOCATIONS, BRANCHES, PRIORITIES, LOCATION_BRANCH_MAP } from '../data/mockData';
+// Lọc mock (Giữ lại danh sách các option cho filter dropdown, không giữ data)
+import { LOCATIONS, BRANCHES, PRIORITIES, LOCATION_BRANCH_MAP } from '../data/mockData';
 
 export default function Dashboard() {
-  const now = new Date();
   const [viewMode, setViewMode] = useState('SC'); // 'SC' or 'HT'
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'qos', 'bottleneck'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview'
   
-  // Real Filter States (Multi-select uses arrays now)
-  const [dateRange, setDateRange] = useState('30'); // '7' or '30'
+  // Real Filter States
+  const [dateRange, setDateRange] = useState('30');
   const [locationFilter, setLocationFilter] = useState([]);
   const [branchFilter, setBranchFilter] = useState([]);
   const [priorityFilter, setPriorityFilter] = useState([]);
@@ -47,49 +39,13 @@ export default function Dashboard() {
     }
   }, [availableBranches]);
   
-
-  // Filtered Data Logic
-  const data = useMemo(() => {
-    const rawData = viewMode === 'SC' ? mockSCData : mockHTData;
-
-    return rawData.filter(t => {
-      // 1. Location Filter (Array includes)
-      if (locationFilter.length > 0 && !locationFilter.includes(t.location)) return false;
-
-      // 2. Branch Filter (Array includes)
-      if (branchFilter.length > 0 && !branchFilter.includes(t.branch_name)) return false;
-
-      // 3. Priority Filter (Array includes)
-      if (priorityFilter.length > 0 && !priorityFilter.includes(t.priority)) return false;
-
-      // 3. Date Range Filter
-      const tDate = new Date(t.created_date);
-      const now = new Date();
-      if (dateRange === '7') {
-        const past = new Date();
-        past.setDate(now.getDate() - 7);
-        if (tDate < past) return false;
-      } else if (dateRange === '30') {
-        const past = new Date();
-        past.setDate(now.getDate() - 30);
-        if (tDate < past) return false;
-      }
-      return true;
-    });
-  }, [viewMode, locationFilter, branchFilter, priorityFilter, dateRange]);
-
-  // KPI Calculations
-  const stats = useMemo(() => {
-    const total = data.length;
-    const impactedCustomers = data.reduce((acc, curr) => acc + curr.cus_qty, 0);
-    const slaCorrect = data.filter(t => t.sla_status === 'Đúng hạn').length;
-    const slaRate = total > 0 ? ((slaCorrect / total) * 100).toFixed(1) : 0;
-    const avgTime = total > 0 ? Math.round(data.reduce((acc, curr) => acc + curr.actual_time, 0) / total) : 0;
-    const sosCount = data.filter(t => t.sos_ticket_flag === 'Có').length;
-    const criticalCount = data.filter(t => t.priority >= 5).length;
-
-    return { total, impactedCustomers, slaRate, avgTime, sosCount, criticalCount };
-  }, [data]);
+  // Tổng hợp filter state để truyền xuống tab
+  const filters = useMemo(() => ({
+    dateRange,
+    locations: locationFilter,
+    branches: branchFilter,
+    priorities: priorityFilter
+  }), [dateRange, locationFilter, branchFilter, priorityFilter]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
@@ -197,27 +153,14 @@ export default function Dashboard() {
             <LayoutDashboard size={18} />
             Tổng quan (Overview)
           </button>
-          <button
-            onClick={() => setActiveTab('qos')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'qos' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
-          >
-            <Target size={18} />
-            Đánh giá Chất lượng (QoS/CX)
-          </button>
-          <button
-            onClick={() => setActiveTab('bottleneck')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'bottleneck' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
-          >
-            <GitBranch size={18} />
-            Phân tích Ùn tắc (Bottlenecks)
-          </button>
+          {/* Các tab phân tích sâu như QoS, Bottleneck được tạm ẩn/xóa cho rõ ràng */}
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto space-y-6">
-        {activeTab === 'overview' && <OverviewTab data={data} stats={stats} viewMode={viewMode} />}
-        {activeTab === 'qos' && <QoSTab data={data} />}
-        {activeTab === 'bottleneck' && <BottleneckTab data={data} />}
+        {/* Render Tab dựa trên viewMode */}
+        {activeTab === 'overview' && viewMode === 'SC' && <SCOverviewTab filters={filters} />}
+        {activeTab === 'overview' && viewMode === 'HT' && <HTOverviewTab filters={filters} />}
       </main>
 
       <footer className="max-w-7xl mx-auto mt-12 pb-8 flex justify-between items-center text-sm text-gray-400 border-t border-gray-100 pt-6">
@@ -228,7 +171,6 @@ export default function Dashboard() {
         <p>© 2025 SCC HT System • Vietnam Telecom Performance Dashboard</p>
       </footer>
 
-      {/* Tích hợp trực tiếp Trợ lý AI & SQL Analyzer */}
       <AICopilot />
     </div>
   );
