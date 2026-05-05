@@ -4,7 +4,7 @@ from app.schemas.analytics import TicketFilter
 
 class AnalyticService:
     def __init__(self):
-        # self.db = OracleClient()
+        self.db = OracleClient()
         pass
 
     def _build_filter_clauses(self, filter: TicketFilter, context: str = "sc"):

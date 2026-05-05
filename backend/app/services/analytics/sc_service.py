@@ -241,19 +241,23 @@ class SCAnalyticService(AnalyticService):
                 "JOIN fact_ticket_creation c ON t.creation_id = c.id")
         joins, where_, params = self._build_filter_clauses(filter, context="sc")
         sql = f"""
-            SELECT
-                ig.name,
-                cnt,
-                ROUND(RATIO_TO_REPORT(cnt) OVER () * 100, 1) AS pct,
-                SUM(cnt) OVER (ORDER BY cnt DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_cnt,
-                ROUND(SUM(RATIO_TO_REPORT(cnt) OVER ()) OVER (ORDER BY cnt DESC) * 100, 1) AS cumulative_pct
-            FROM (
+            WITH group_counts AS (
                 SELECT ig.name, COUNT(*) AS cnt
                 {base} {joins}
                 WHERE {where_}
                 GROUP BY ig.name
+            ),
+            total AS (
+                SELECT SUM(cnt) AS total_cnt FROM group_counts
             )
-            ORDER BY cnt DESC
+            SELECT
+                gc.name,
+                gc.cnt,
+                ROUND(gc.cnt * 100.0 / t.total_cnt, 1) AS pct,
+                SUM(gc.cnt) OVER (ORDER BY gc.cnt DESC) AS cumulative_cnt,
+                ROUND(SUM(gc.cnt * 100.0 / t.total_cnt) OVER (ORDER BY gc.cnt DESC), 1) AS cumulative_pct
+            FROM group_counts gc, total t
+            ORDER BY gc.cnt DESC
         """
         return self.db.fetch_all(sql, params)
 

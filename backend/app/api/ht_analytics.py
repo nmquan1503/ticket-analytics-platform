@@ -36,7 +36,7 @@ def analytics_root():
 @router.get("/kpi")
 @mock_scale
 def get_kpi(filter: TicketFilter = Depends(build_filter)):
-    # return ht_service.get_kpi(filter)
+    return ht_service.get_kpi(filter)
     return {
         "total_tickets": 856,
         "open_tickets": 67,
@@ -57,7 +57,7 @@ def get_kpi(filter: TicketFilter = Depends(build_filter)):
 @router.get("/trend")
 @mock_scale
 def get_trend(filter: TicketFilter = Depends(build_filter)):
-    # return ht_service.get_trend(filter)
+    return ht_service.get_trend(filter)
     return [
         {"ticket_date": "2025-04-25", "cnt": 32, "moving_avg_7d": 32.0, "prev_cnt": None, "change_pct": 0, "cumulative_cnt": 32},
         {"ticket_date": "2025-04-26", "cnt": 28, "moving_avg_7d": 30.0, "prev_cnt": 32, "change_pct": -12.5, "cumulative_cnt": 60},

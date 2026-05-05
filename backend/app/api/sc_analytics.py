@@ -36,7 +36,7 @@ def analytics_root():
 @router.get("/kpi")
 @mock_scale
 def get_kpi(filter: TicketFilter = Depends(build_filter)):
-    # return sc_service.get_kpi(filter)
+    return sc_service.get_kpi(filter)
     return {
         "total_tickets": 1247,
         "open_tickets": 89,
@@ -56,7 +56,7 @@ def get_kpi(filter: TicketFilter = Depends(build_filter)):
 @router.get("/trend")
 @mock_scale
 def get_trend(filter: TicketFilter = Depends(build_filter)):
-    # return sc_service.get_trend(filter)
+    return sc_service.get_trend(filter)
     return [
         {"date": "2025-04-21", "cnt": 42, "moving_avg_7d": 42.0, "prev_cnt": None, "change_pct": 0, "cumulative_cnt": 42},
         {"date": "2025-04-22", "cnt": 38, "moving_avg_7d": 40.0, "prev_cnt": 42, "change_pct": -9.52, "cumulative_cnt": 80},
@@ -75,7 +75,7 @@ def get_period_comparison(
     filter: TicketFilter = Depends(build_filter),
     period: str = Query("month", description="month, week, quarter")
 ):
-    # return sc_service.get_period_comparison(filter, period)
+    return sc_service.get_period_comparison(filter, period)
     return [
         {"period": "2025-01", "cnt": 120, "prev_period": None, "same_period_last_year": None, "mom_change_pct": None, "yoy_change_pct": None},
         {"period": "2025-02", "cnt": 135, "prev_period": 120, "same_period_last_year": 110, "mom_change_pct": 12.5, "yoy_change_pct": 22.73},
@@ -90,7 +90,7 @@ def get_period_comparison(
 @router.get("/processing_time_distribution")
 @mock_scale
 def get_processing_time_distribution(filter: TicketFilter = Depends(build_filter)):
-    # return sc_service.get_processing_time_distribution(filter)
+    return sc_service.get_processing_time_distribution(filter)
     return {
         "statistics": {
             "min_val": 5,
@@ -116,7 +116,7 @@ def get_processing_time_distribution(filter: TicketFilter = Depends(build_filter
 @router.get("/pivot_device_by_shift")
 @mock_scale
 def get_pivot_device_by_shift(filter: TicketFilter = Depends(build_filter)):
-    # return sc_service.get_pivot_device_by_shift(filter)
+    return sc_service.get_pivot_device_by_shift(filter)
     return [
         {"device_type": "OPMS", "ca1": 120, "ca2": 95},
         {"device_type": "OLT", "ca1": 85, "ca2": 72},
@@ -130,7 +130,7 @@ def get_pivot_device_by_shift(filter: TicketFilter = Depends(build_filter)):
 @router.get("/correlation")
 @mock_scale
 def get_correlation(filter: TicketFilter = Depends(build_filter)):
-    # return sc_service.get_correlation(filter)
+    return sc_service.get_correlation(filter)
     return {
         "corr_actual_suspend": 0.68,
         "corr_actual_creation": -0.22
@@ -146,7 +146,7 @@ def get_top_branches_ranked(
     filter: TicketFilter = Depends(build_filter),
     limit: int = Query(10, description="Số lượng top")
 ):
-    # return sc_service.get_top_branches_ranked(filter, limit)
+    return sc_service.get_top_branches_ranked(filter, limit)
     all_branches = [
         {"name": "Khánh Hòa 2", "cnt": 134, "rnk": 1},
         {"name": "Hà Nội 10", "cnt": 128, "rnk": 2},
@@ -166,7 +166,7 @@ def search_incidents(
     keyword: str = Query(..., description="Từ khóa tìm kiếm"),
     filter: TicketFilter = Depends(build_filter)
 ):
-    # return sc_service.search_incidents_by_keyword(keyword, filter)
+    return sc_service.search_incidents_by_keyword(keyword, filter)
     return [
         {"code": "SC20250401001", "ticket_date": "2025-04-01", "description": f"Kết quả cho '{keyword}': Mất kết nối POP-HN1"},
         {"code": "SC20250402015", "ticket_date": "2025-04-02", "description": f"'{keyword}' xuất hiện trong cảnh báo B2B"},
@@ -179,7 +179,7 @@ def search_incidents(
 @router.get("/incident_tree")
 @mock_scale
 def get_incident_tree(root_ticket_id: int = Query(...)):
-    # return sc_service.get_incident_tree(root_ticket_id)
+    return sc_service.get_incident_tree(root_ticket_id)
     return [
         {"code": "SC20250401001", "level": 1, "path": "SC20250401001"},
         {"code": "SC20250401002", "level": 2, "path": "SC20250401001 -> SC20250401002"},
@@ -192,7 +192,7 @@ def get_incident_tree(root_ticket_id: int = Query(...)):
 @router.get("/pareto_issue_groups")
 @mock_scale
 def get_pareto_issue_groups(filter: TicketFilter = Depends(build_filter)):
-    # return sc_service.get_pareto_issue_groups(filter)
+    return sc_service.get_pareto_issue_groups(filter)
     return [
         {"name": "Hệ thống Access", "cnt": 450, "pct": 30.0, "cumulative_cnt": 450, "cumulative_pct": 30.0},
         {"name": "Hệ thống Core IP", "cnt": 300, "pct": 20.0, "cumulative_cnt": 750, "cumulative_pct": 50.0},
@@ -206,7 +206,7 @@ def get_pareto_issue_groups(filter: TicketFilter = Depends(build_filter)):
 @router.get("/current_shift_vs_previous")
 @mock_scale
 def get_current_shift_vs_previous(filter: TicketFilter = Depends(build_filter)):
-    # return sc_service.get_current_shift_vs_previous(filter)
+    return sc_service.get_current_shift_vs_previous(filter)
     return {
         "current_shift": {"shift": "Ca 2", "cnt": 45},
         "previous_shift": {"shift": "Ca 1", "cnt": 38}
@@ -222,7 +222,7 @@ def get_forecast(
     filter: TicketFilter = Depends(build_filter),
     days_ahead: int = Query(7, description="Số ngày dự báo")
 ):
-    # return sc_service.get_forecast(filter, days_ahead)
+    return sc_service.get_forecast(filter, days_ahead)
     return {
         "actual": [
             {"day": "2025-04-25", "cnt": 42},
@@ -238,7 +238,7 @@ def get_forecast(
 @router.get("/anomalies")
 @mock_scale
 def get_anomalies(filter: TicketFilter = Depends(build_filter)):
-    # return sc_service.get_anomalies(filter)
+    return sc_service.get_anomalies(filter)
     return [
         {"code": "SC20250428003", "ticket_date": "2025-04-28", "actual_time": 720, "anomaly_type": "High"},
         {"code": "SC20250429015", "ticket_date": "2025-04-29", "actual_time": 5, "anomaly_type": "Low"},
@@ -248,7 +248,7 @@ def get_anomalies(filter: TicketFilter = Depends(build_filter)):
 @router.get("/clusters")
 @mock_scale
 def get_clusters(filter: TicketFilter = Depends(build_filter)):
-    # return sc_service.get_clusters(filter)
+    return sc_service.get_clusters(filter)
     return [
         {"cluster_id": 1, "cnt": 340},
         {"cluster_id": 2, "cnt": 280},
@@ -258,5 +258,5 @@ def get_clusters(filter: TicketFilter = Depends(build_filter)):
 @router.post("/predicted_priority")
 @mock_scale
 def predicted_priority(description: str = Body(..., embed=True)):
-    # return sc_service.get_predicted_priority(description)
+    return sc_service.get_predicted_priority(description)
     return {"predicted_priority": "3"}

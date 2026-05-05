@@ -78,7 +78,9 @@ export const chatApi = {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        question: text
+      })
     });
     if (!res.ok) throw new Error("Lỗi kết nối Chat API");
     return res.json();
