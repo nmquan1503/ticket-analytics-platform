@@ -2369,15 +2369,15 @@ def update_schema_embeddings(cursor):
             'PLUS_VALUE_COLUMNS', 'COLUMN_EMBEDDINGS', 'TABLE_EMBEDDINGS',
             'REDO_DB', 'REDO_LOG', 'HELP', 'SQLPLUS_PRODUCT_PROFILE'
         )
-        AND t.table_name NOT LIKE 'MVIEW$_%'
-        AND t.table_name NOT LIKE 'MVIEW$_ADV%'
-        AND t.table_name NOT LIKE 'AQ$%'
-        AND t.table_name NOT LIKE 'AQ$_%'
-        AND t.table_name NOT LIKE 'SCHEDULER$_%'
-        AND t.table_name NOT LIKE 'OL$%'
-        AND t.table_name NOT LIKE 'DR$%'
-        AND t.table_name NOT LIKE 'BIN$%'
-        AND t.table_name NOT LIKE 'SYS_%'
+        AND col.table_name NOT LIKE 'MVIEW$_%'
+        AND col.table_name NOT LIKE 'MVIEW$_ADV%'
+        AND col.table_name NOT LIKE 'AQ$%'
+        AND col.table_name NOT LIKE 'AQ$_%'
+        AND col.table_name NOT LIKE 'SCHEDULER$_%'
+        AND col.table_name NOT LIKE 'OL$%'
+        AND col.table_name NOT LIKE 'DR$%'
+        AND col.table_name NOT LIKE 'BIN$%'
+        AND col.table_name NOT LIKE 'SYS_%'
     """)
     columns = cursor.fetchall()
     logger.info(f"Số cột cần xử lý: {len(columns)}")

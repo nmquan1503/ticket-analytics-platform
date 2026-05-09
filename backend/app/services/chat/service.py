@@ -35,6 +35,7 @@ class ChatService:
         if not rows:
             return None
         file_id = str(uuid.uuid4())
+        Path(settings.CSV_DIR).mkdir(parents=True, exist_ok=True)
         file_path = Path(settings.CSV_DIR) / f"{file_id}.csv"
 
         with open(file_path, "w", newline="", encoding="utf-8") as f:
