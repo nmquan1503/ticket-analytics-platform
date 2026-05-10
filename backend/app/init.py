@@ -2026,9 +2026,8 @@ def insert_dimensions(cursor):
 
 # ------------------------------ Generate FACT ------------------------------
 def generate_fact_data(num_tickets, cursor):
-    logger.info(f"Generating {num_tickets} tickets...")
+    logger.info(f"Generating {num_tickets} tickets (FAST MODE)...")
 
-    # Lấy tất cả ID từ chính các danh sách DIM
     branch_ids         = [b[0] for b in BRANCHES]
     device_type_ids    = [d[0] for d in DEVICE_TYPES]
     device_ids         = list(range(1, len(DEVICE_NAMES)+1))
@@ -2048,236 +2047,215 @@ def generate_fact_data(num_tickets, cursor):
     region_ids         = [r[0] for r in REGIONS]
     staff_ids          = [s[0] for s in STAFFS]
 
-    # Thời gian: 2 tháng trước -> hiện tại
     now = datetime.datetime.now()
     start_ref = now - datetime.timedelta(days=60)
-    end_ref = now
 
-    for i in range(1, num_tickets+1):
+    # ---------------- BUFFER ----------------
+    desc_rows = []
+    time_rows = []
+    creation_rows = []
+    close_rows = []
+    process_rows = []
+    ticket_rows = []
+
+    sc_rows = []
+    ht_rows = []
+
+    branch_rows = []
+    device_rows = []
+    interface_rows = []
+    location_rows = []
+    pop_rows = []
+
+    for i in range(1, num_tickets + 1):
+
         is_sc = random.choice([True, False])
         ticket_type = 'SC' if is_sc else 'HT'
         code = generate_ticket_code(ticket_type, i)
 
-        # dim_ticket_description
-        first_desc = f"First description for {code}"
-        desc = f"Detail description for {code}"
-        cursor.execute(f"""
-            INSERT INTO dim_ticket_description (id, first_description, description)
-            VALUES ({i}, {sql_quote(first_desc)}, {sql_quote(desc)})
-        """)
+        # ---------------- DIM DESCRIPTION ----------------
+        desc_rows.append((
+            i,
+            f"First description for {code}",
+            f"Detail description for {code}"
+        ))
 
-        # fact_ticket_time
-        issue_date = random_date(start_ref, end_ref)
+        # ---------------- TIME ----------------
+        issue_date = random_date(start_ref, now)
         inprogress_date = issue_date + datetime.timedelta(minutes=random.randint(5, 60))
         resolved_date = inprogress_date + datetime.timedelta(minutes=random.randint(30, 300))
         closed_date = resolved_date + datetime.timedelta(minutes=random.randint(0, 60))
-        estimate_date = issue_date + datetime.timedelta(hours=random.randint(1, 8))
-        expect_end_date = resolved_date + datetime.timedelta(minutes=random.randint(-30, 30))
-        required_date = resolved_date + datetime.timedelta(minutes=random.randint(-60, 60))
-        full_data_date = inprogress_date + datetime.timedelta(minutes=random.randint(10, 120))
-        cursor.execute(f"""
-            INSERT INTO fact_ticket_time (
-                id, closed_date, estimate_date, expect_end_date,
-                inprogress_date, issue_date, resolved_date, required_date, full_data_date
-            ) VALUES (
-                {i}, {sql_quote(closed_date)}, {sql_quote(estimate_date)}, {sql_quote(expect_end_date)},
-                {sql_quote(inprogress_date)}, {sql_quote(issue_date)}, {sql_quote(resolved_date)},
-                {sql_quote(required_date)}, {sql_quote(full_data_date)}
-            )
-        """)
 
-        # fact_ticket_creation
+        time_rows.append((
+            i, closed_date,
+            issue_date + datetime.timedelta(hours=random.randint(1, 8)),
+            resolved_date,
+            inprogress_date,
+            issue_date,
+            resolved_date,
+            resolved_date,
+            inprogress_date
+        ))
+
+        # ---------------- CREATION ----------------
         created_datetime = issue_date + datetime.timedelta(minutes=random.randint(0, 15))
-        sc_creation_method = random.choice(['SC tạo auto', 'SC tạo manual (SC tạo tay)'])
-        sc_creation_time = round(random.uniform(0.1, 5.0), 1)
-        created_staff_id = random.choice(staff_ids)
-        date_created = created_datetime.date()
-        week_created = f"W{date_created.isocalendar()[1]} - {date_created.year}"
-        month_created = date_created.strftime("%m/%Y")
-        period_created = f"{random.choice(['1H','2H'])} - {date_created.year}"
-        year_created = date_created.year
-        shift_created = random_shift()
-        cursor.execute(f"""
-            INSERT INTO fact_ticket_creation (
-                id, sc_creation_method, sc_creation_time, created_staff_id,
-                created_datetime, "date", "week", "month", "period", "year", "shift"
-            ) VALUES (
-                {i}, {sql_quote(sc_creation_method)}, {sc_creation_time}, {created_staff_id},
-                {sql_quote(created_datetime)}, {sql_quote(date_created)}, {sql_quote(week_created)},
-                {sql_quote(month_created)}, {sql_quote(period_created)}, {year_created}, {sql_quote(shift_created)}
-            )
-        """)
 
-        # dim_ticket_close
-        closed_shift = random_shift()
-        closed_day = resolved_date.date()
-        closed_week = f"W{closed_day.isocalendar()[1]} - {closed_day.year}"
-        closed_month = closed_day.strftime("%m/%Y")
-        closed_year = closed_day.year
-        cursor.execute(f"""
-            INSERT INTO dim_ticket_close (
-                id, closed_shift, closed_day, closed_week, closed_month, closed_year
-            ) VALUES (
-                {i}, {sql_quote(closed_shift)}, {sql_quote(closed_day)}, {sql_quote(closed_week)},
-                {sql_quote(closed_month)}, {closed_year}
-            )
-        """)
+        creation_rows.append((
+            i,
+            random.choice(['SC tạo auto', 'SC tạo manual (SC tạo tay)']),
+            round(random.uniform(0.1, 5.0), 1),
+            random.choice(staff_ids),
+            created_datetime,
+            created_datetime.date(),
+            f"W{created_datetime.isocalendar()[1]}",
+            created_datetime.strftime("%m/%Y"),
+            "period",
+            created_datetime.year,
+            random_shift()
+        ))
 
-        # fact_ticket_process
-        process_name = f"Process_{code}"
-        process_staff_id = random.choice(staff_ids)
-        processing_unit_id = random.choice(processing_unit_ids)
-        queue_create_id = random.choice(queue_ids)
-        queue_process_id = random.choice(queue_ids)
-        change_queue_time = random.randint(5, 120)
-        actual_time = random.randint(10, 300)
-        cursor.execute(f"""
-            INSERT INTO fact_ticket_process (
-                id, process_name, process_staff_id, processing_unit_id,
-                queue_create_id, queue_process_id, change_queue_time, actual_time
-            ) VALUES (
-                {i}, {sql_quote(process_name)}, {process_staff_id}, {processing_unit_id},
-                {queue_create_id}, {queue_process_id}, {change_queue_time}, {actual_time}
-            )
-        """)
+        # ---------------- CLOSE ----------------
+        close_rows.append((
+            i,
+            random_shift(),
+            resolved_date.date(),
+            f"W{resolved_date.isocalendar()[1]}",
+            resolved_date.strftime("%m/%Y"),
+            resolved_date.year
+        ))
 
-        # fact_tickets
-        over_time = random.choice(['Đúng hạn', 'Trễ hạn', 'RESOLVED - Đúng hạn'])
-        reason_id = random.choice(reason_ids)
-        priority = random_priority()
-        ticket_status = random_ticket_status()
-        issue_name_id = random.choice(issue_name_ids)
-        required_time = random.randint(30, 480)
-        cursor.execute(f"""
-            INSERT INTO fact_tickets (
-                id, code, process_id, time_id, creation_id, closed_id,
-                over_time, reason_id, priority, ticket_status, issue_name_id, required_time
-            ) VALUES (
-                {i}, {sql_quote(code)}, {i}, {i}, {i}, {i},
-                {sql_quote(over_time)}, {reason_id}, {priority}, {sql_quote(ticket_status)},
-                {issue_name_id}, {required_time}
-            )
-        """)
+        # ---------------- PROCESS ----------------
+        process_rows.append((
+            i,
+            f"Process_{code}",
+            random.choice(staff_ids),
+            random.choice(processing_unit_ids),
+            random.choice(queue_ids),
+            random.choice(queue_ids),
+            random.randint(5, 120),
+            random.randint(10, 300)
+        ))
 
-        # fact_sc_tickets hoặc fact_ht_tickets
+        # ---------------- TICKET ----------------
+        ticket_rows.append((
+            i,
+            code,
+            i, i, i, i,
+            random.choice(['Đúng hạn', 'Trễ hạn']),
+            random.choice(reason_ids),
+            random_priority(),
+            random_ticket_status(),
+            random.choice(issue_name_ids),
+            random.randint(30, 480)
+        ))
+
+        # ---------------- SC / HT ----------------
         if is_sc:
-            cus_qty = random.randint(0, 500) if random.random() < 0.5 else 0
-            device_type_id = random.choice(device_type_ids)
-            suspend_time = random.randint(30, 600) if random.random() < 0.8 else 0
-            sc_khg_status = random_boolean()
-            sc_report_status = random_boolean()
-            sc_type = random.choice(['Khách quan', 'Chủ quan', ''])
-            region_id = random.choice(region_ids)
-            sc_inf_explanation_status = random_boolean()
-            sc_natural_disaster = random_boolean()
-            parent = f"Parent note for {code}"
-            cursor.execute(f"""
-                INSERT INTO fact_sc_tickets (
-                    ticket_id, description_id, cus_qty, device_type_id, suspend_time,
-                    sc_khg_status, sc_report_status, sc_type, region_id,
-                    sc_inf_explanation_status, sc_natural_disaster, parent
-                ) VALUES (
-                    {i}, {i}, {cus_qty}, {device_type_id}, {suspend_time},
-                    {sql_quote(sc_khg_status)}, {sql_quote(sc_report_status)}, {sql_quote(sc_type)},
-                    {region_id}, {sql_quote(sc_inf_explanation_status)}, {sql_quote(sc_natural_disaster)},
-                    {sql_quote(parent)}
-                )
-            """)
+            sc_rows.append((
+                i, i,
+                random.randint(0, 500),
+                random.choice(device_type_ids),
+                random.randint(0, 600),
+                random_boolean(),
+                random_boolean(),
+                random.choice(['Khách quan','Chủ quan','']),
+                random.choice(region_ids),
+                random_boolean(),
+                random_boolean(),
+                f"Parent {code}"
+            ))
         else:
-            title = f"Support ticket {code}"
-            commitment_desc = random_boolean()
-            required = random_boolean()
-            is_ticket_open = random_boolean()
-            sos_ticket_flag = random_boolean()
-            customer_type_id = random.choice(customer_type_ids)
-            service_type_id = random.choice(service_type_ids)
-            support_type_id = random.choice(support_type_ids)
-            step_id = random.choice(step_ids)
-            deadline_status = random.choice(['Đúng hạn', 'Quá hạn'])
-            rejection_count = random.randint(0, 3)
-            response_count = random.randint(1, 5)
-            sla_violation_count = str(random.randint(0, 3)) if random.random() < 0.7 else 'Không'
-            priority_handling_desc = random_boolean()
-            is_escalated = random_boolean()
-            scenario_confirmed = random_boolean()
-            ticket_age_days = round(random.uniform(0.5, 30.0), 1)
-            cursor.execute(f"""
-                INSERT INTO fact_ht_tickets (
-                    ticket_id, title, commitment_desc, required, is_ticket_open,
-                    sos_ticket_flag, customer_type_id, service_type_id, support_type_id,
-                    step_id, deadline_status, rejection_count, response_count,
-                    sla_violation_count, priority_handling_desc, is_escalated,
-                    scenario_confirmed, ticket_age_days
-                ) VALUES (
-                    {i}, {sql_quote(title)}, {sql_quote(commitment_desc)}, {sql_quote(required)},
-                    {sql_quote(is_ticket_open)}, {sql_quote(sos_ticket_flag)}, {customer_type_id},
-                    {service_type_id}, {support_type_id}, {step_id}, {sql_quote(deadline_status)},
-                    {rejection_count}, {response_count}, {sql_quote(sla_violation_count)},
-                    {sql_quote(priority_handling_desc)}, {sql_quote(is_escalated)},
-                    {sql_quote(scenario_confirmed)}, {ticket_age_days}
-                )
-            """)
+            ht_rows.append((
+                i,
+                f"Support ticket {code}",
+                random_boolean(),
+                random_boolean(),
+                random_boolean(),
+                random_boolean(),
+                random.choice(customer_type_ids),
+                random.choice(service_type_ids),
+                random.choice(support_type_ids),
+                random.choice(step_ids),
+                random.choice(['Đúng hạn','Quá hạn']),
+                random.randint(0,3),
+                random.randint(1,5),
+                random.randint(0,3),
+                random_boolean(),
+                random_boolean(),
+                random_boolean(),
+                round(random.uniform(0.5, 30.0), 1)
+            ))
 
-        # Các bảng liên kết
-        # ticket_branch
-        chosen_branches = random.sample(branch_ids, k=random.randint(1, min(3, len(branch_ids))))
-        for b in chosen_branches:
-            cursor.execute(f"INSERT INTO ticket_branch (ticket_id, branch_id) VALUES ({i}, {b})")
+        # ---------------- RELATIONS ----------------
+        for b in random.sample(branch_ids, k=random.randint(1,3)):
+            branch_rows.append((i,b))
 
-        # ticket_device
         if random.random() < 0.7:
-            chosen_devices = random.sample(device_ids, k=random.randint(1, min(2, len(device_ids))))
-            for d in chosen_devices:
-                cursor.execute(f"INSERT INTO ticket_device (ticket_id, device_id) VALUES ({i}, {d})")
+            for d in random.sample(device_ids, k=1):
+                device_rows.append((i,d))
 
-        # ticket_interface
         if random.random() < 0.7:
-            chosen_interfaces = random.sample(interface_ids, k=random.randint(1, min(2, len(interface_ids))))
-            for iface in chosen_interfaces:
-                cursor.execute(f"INSERT INTO ticket_interface (ticket_id, interface_id) VALUES ({i}, {iface})")
+            for iface in random.sample(interface_ids, k=1):
+                interface_rows.append((i,iface))
 
-        # ticket_location
-        chosen_locs = random.sample(location_ids, k=random.randint(1, min(2, len(location_ids))))
-        for loc in chosen_locs:
-            cursor.execute(f"INSERT INTO ticket_location (ticket_id, location_id) VALUES ({i}, {loc})")
+        for loc in random.sample(location_ids, k=1):
+            location_rows.append((i,loc))
 
-        # ticket_pop
-        chosen_pops = random.sample(pop_ids, k=random.randint(1, min(2, len(pop_ids))))
-        for p in chosen_pops:
-            cursor.execute(f"INSERT INTO ticket_pop (ticket_id, pop_id) VALUES ({i}, {p})")
+        for p in random.sample(pop_ids, k=1):
+            pop_rows.append((i,p))
 
-        # ht_ticket_history (chỉ cho HT)
-        if not is_sc:
-            for j in range(random.randint(2, 5)):
-                hist_desc = f"History {j+1} for {code}"
-                updated_date = inprogress_date + datetime.timedelta(minutes=random.randint(0, 60*(j+1)))
-                hist_status = random.choice(['New','Inprogress','Resolved','Closed','Rejected','CREATE','Pending'])
-                action_id = random.choice(action_ids)
-                staff_id = random.choice(staff_ids)
-                step_id = random.choice(step_ids)
-                queue_type_id = random.choice(queue_type_ids)
-                created_date = updated_date - datetime.timedelta(minutes=random.randint(1, 30))
-                updated_queue_id = random.choice(queue_ids)
-                response_time = round(random.uniform(0.5, 60.0), 2)
-                commitment_desc = random_boolean()
-                cursor.execute(f"""
-                    INSERT INTO ht_ticket_history (
-                        description, updated_date, ht_ticket_status, ht_ticket_id,
-                        action_id, staff_id, step_id, queue_type_id, created_date,
-                        updated_queue_id, response_time_minutes, commitment_description
-                    ) VALUES (
-                        {sql_quote(hist_desc)}, {sql_quote(updated_date)}, {sql_quote(hist_status)}, {i},
-                        {action_id}, {staff_id}, {step_id}, {queue_type_id}, {sql_quote(created_date)},
-                        {updated_queue_id}, {response_time}, {sql_quote(commitment_desc)}
-                    )
-                """)
+        if i % 2000 == 0:
+            logger.info(f"Generated {i}")
 
-        if i % 100 == 0:
-            cursor.connection.commit()
-            logger.info(f"Committed {i} tickets")
+    # ---------------- EXECUTEMANY (FAST INSERT) ----------------
+    cursor.executemany("""
+        INSERT INTO dim_ticket_description VALUES (:1,:2,:3)
+    """, desc_rows)
+
+    cursor.executemany("""
+        INSERT INTO fact_ticket_time VALUES (:1,:2,:3,:4,:5,:6,:7,:8,:9)
+    """, time_rows)
+
+    cursor.executemany("""
+        INSERT INTO fact_ticket_creation VALUES (:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11)
+    """, creation_rows)
+
+    cursor.executemany("""
+        INSERT INTO dim_ticket_close VALUES (:1,:2,:3,:4,:5,:6)
+    """, close_rows)
+
+    cursor.executemany("""
+        INSERT INTO fact_ticket_process VALUES (:1,:2,:3,:4,:5,:6,:7,:8)
+    """, process_rows)
+
+    cursor.executemany("""
+        INSERT INTO fact_tickets VALUES (:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12)
+    """, ticket_rows)
+
+    if sc_rows:
+        cursor.executemany("""
+            INSERT INTO fact_sc_tickets VALUES (
+                :1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12
+            )
+        """, sc_rows)
+
+    if ht_rows:
+        cursor.executemany("""
+            INSERT INTO fact_ht_tickets VALUES (
+                :1,:2,:3,:4,:5,:6,:7,:8,:9,:10,
+                :11,:12,:13,:14,:15,:16,:17,:18
+            )
+        """, ht_rows)
+
+    cursor.executemany("INSERT INTO ticket_branch VALUES (:1,:2)", branch_rows)
+    cursor.executemany("INSERT INTO ticket_device VALUES (:1,:2)", device_rows)
+    cursor.executemany("INSERT INTO ticket_interface VALUES (:1,:2)", interface_rows)
+    cursor.executemany("INSERT INTO ticket_location VALUES (:1,:2)", location_rows)
+    cursor.executemany("INSERT INTO ticket_pop VALUES (:1,:2)", pop_rows)
 
     cursor.connection.commit()
-    logger.info(f"Finished {num_tickets} tickets.")
+    logger.info("FAST INSERT DONE")
+    
 import array
 def update_examples_embeddings(cursor):
     logger.info("Bắt đầu cập nhật embedding cho bảng EXAMPLES...")
